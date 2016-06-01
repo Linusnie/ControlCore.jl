@@ -9,6 +9,41 @@ defined on them, in a way that other tools for **analyzing** or **identifying**
 control systems would use the same set of functionality in a transparent,
 coherent way.
 
+The planned functionality to include in this toolbox is (ticked boxes are implemented):
+**Creation of types**
+- [x] `tf`
+- [x] `zpk`
+- [ ] `ss`
+
+**Basic operations**
+- [x] `+`
+- [x] `-`
+- [x] `*`
+- [x] `/`
+- [x] `==`
+- [x] `.*`
+- [x] `.+`
+- [x] `.-`
+- [x] `.*`
+
+**Basic functionality**
+- [ ] `degree`
+- [ ] `zeros`
+- [ ] `poles`
+- [ ] `numvec`
+- [ ] `denvec`
+- [ ] `numPoly`
+- [ ] `denPoly`
+- [ ] `evalFreq`
+
+**Interconnections**
+- [ ] parallell
+- [ ] series
+- [ ] feedback
+
+**Conversions**
+- [ ] Conversions
+
 [travis-ci-img]: https://travis-ci.org/KTH-AC/ControlCore.jl.svg?branch=master
 [travis-ci-link]: https://travis-ci.org/KTH-AC/ControlCore.jl
 [appveyor-ci-img]: https://ci.appveyor.com/api/projects/status/geqrrlwve5ycjh0a/branch/master?svg=true
