@@ -1,5 +1,8 @@
 # continuous state space type definition
 
+"""
+some documentation
+"""
 immutable ContinuousSs{T<:Real} <: StateSpace
   A::Matrix{T}
   B::Matrix{T}
@@ -108,10 +111,89 @@ ndims{T<:Real}(s::ContinuousSs{T})          = 2
 size{T<:Real}(s::ContinuousSs{T})           = (s.ny, s.nu)
 size{T<:Real}(s::ContinuousSs{T}, dim::Int) = dim > ndims(s) ? 1 : size(s)[dim]
 
-function getindex{T<:Real}(s::ContinuousSs{T}, outidx::Int, inidx::Int)
-  ContinuousSs(s.A, hcat(s.B[:, inidx]), s.C[outidx, :],
-    fill(s.D[outidx, inidx], 1, 1))
+function getindex{T<:Real}(s::ContinuousSs{T}, idx::Int)
+  if idx > length(s.D)
+    warn("s[idx]: Trying to access idx > length(s.D)")
+    throw(BoundsError(s.D, idx))
+  end
+
+  col, row = divrem(idx-1, s.ny)
+
+  ContinuousSs(s.A, hcat(s.B[:, col+1]), s.C[row+1, :],
+    fill(s.D[row+1, col+1], 1, 1))
 end
+
+function getindex{T<:Real}(s::ContinuousSs{T}, rows, cols)
+  b = try
+    [s.B[row, col] for row in 1:s.nx, col in cols]
+  catch exception
+    warn("s[,j]: Trying to access non-existent inputs")
+    throw(exception)
+  end
+
+  c = try
+    [s.C[row, col] for row in rows, col in 1:s.nx]
+  catch exception
+    warn("s[i,]: Trying to access non-existent outputs")
+    throw(exception)
+  end
+
+  d = [s.D[row, col] for row in rows, col in cols]
+
+  ContinuousSs(s.A, b, c, d)
+end
+
+getindex{T<:Real}(s::ContinuousSs{T}, ::Colon, ::Colon) = s
+
+function getindex{T<:Real}(s::ContinuousSs{T}, ::Colon, cols)
+  b = try
+    [s.B[row, col] for row in 1:s.nx, col in cols]
+  catch exception
+    warn("s[,j]: Trying to access non-existent inputs")
+    throw(exception)
+  end
+
+  c = try
+    [s.C[row, col] for row in 1:s.ny, col in 1:s.nx]
+  catch exception
+    warn("s[i,]: Trying to access non-existent outputs")
+    throw(exception)
+  end
+
+  d = [s.D[row, col] for row in 1:s.ny, col in cols]
+
+  ContinuousSs(s.A, b, c, d)
+end
+
+function getindex{T<:Real}(s::ContinuousSs{T}, rows, ::Colon)
+  b = try
+    [s.B[row, col] for row in 1:s.nx, col in 1:s.nu]
+  catch exception
+    warn("s[,j]: Trying to access non-existent inputs")
+    throw(exception)
+  end
+
+  c = try
+    [s.C[row, col] for row in rows, col in 1:s.nx]
+  catch exception
+    warn("s[i,]: Trying to access non-existent outputs")
+    throw(exception)
+  end
+
+  d = [s.D[row, col] for row in rows, col in 1:s.nu]
+
+  ContinuousSs(s.A, b, c, d)
+end
+
+start{T<:Real}(::ContinuousSs{T})         = 1
+next{T<:Real}(s::ContinuousSs{T}, state)  = (s[state], state+1)
+done{T<:Real}(s::ContinuousSs{T}, state)  = state > length(s.D)
+eltype{T<:Real}(::Type{ContinuousSs{T}})  = ContinuousSs{T}
+length{T<:Real}(s::ContinuousSs{T})       = length(s.D)
+eachindex{T<:Real}(s::ContinuousSs{T})    = eachindex(s.D)
+endof{T<:Real}(s::ContinuousSs{T})        = endof(s.D)
+
+showcompact{T<:Real}(io::IO, s::ContinuousSs{T}) = print(io, summary(s))
 
 function show{T<:Real}(io::IO, s::ContinuousSs{T})
     println(io, "Continuous time state space model")
@@ -120,7 +202,17 @@ function show{T<:Real}(io::IO, s::ContinuousSs{T})
     println(io, "with nx=", s.nx, ", nu=", s.nu, ", ny=", s.ny, ".")
 end
 
-showcompact{T<:Real}(io::IO, s::ContinuousSs{T}) = print(io, summary(s))
+function showall{T<:Real}(io::IO, s::ContinuousSs{T})
+  show(io, s)
+  println(io, "System matrix (A):")
+  println(io, s.A)
+  println(io, "Input matrix (B):")
+  println(io, s.B)
+  println(io, "Output matrix (C):")
+  println(io, s.C)
+  println(io, "Feedforward matrix (D):")
+  println(io, s.D)
+end
 
 function summary{T<:Real}(s::ContinuousSs{T})
   string("ss(nx=", s.nx, ",nu=", s.nu, ",ny=", s.ny, ")")
