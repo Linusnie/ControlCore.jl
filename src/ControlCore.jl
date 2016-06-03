@@ -4,7 +4,10 @@ module ControlCore
 import Base: convert, promote_rule
 
 # Import identities for overloading
-import Base: one, zero, zeros
+import Base: one, zero
+
+# Import inv and zeros
+import Base: inv, zeros
 
 # Import slicing functions
 import Base: ndims, size, getindex
@@ -38,6 +41,6 @@ export
 using Polynomials
 
 include("abstract.jl")
-include("continuousss.jl")
+include("continuousssmimo.jl")
 
 end # module
