@@ -104,9 +104,9 @@ The type system will look like this:
       - `CSisoSs{T} <: SisoSs{T}`
       - `DSisoSs{T} <: SisoSs{T}`
   - `abstract MimoSystem`
-    - `CMimoTf{T<:CSiso}`
+    - `CMimo{T<:CSiso}`
     - `CMimoSs{T<:Real}`
-    - `DMimoTf{T<:DSiso}`
+    - `DMimo{T<:DSiso}`
     - `DMimoSs{T<:Real}`
 - `CSiso = Union{CSisoTf,CSisoSs}`
 - `DSiso = Union{DSisoTf,DSisoSs}`
