@@ -89,7 +89,7 @@ function zero{T1<:DiscreteSisoTf}(::Type{DiscreteMimo{T1}})
   return DiscreteMimo(fill(s,1,1), s.Ts)
 end
 
-function zeros(s::DiscreteMimo)
+function zeros{T1<:DiscreteSisoTf}(s::DiscreteMimo{T1})
   z = Matrix{Vector}(s.ny, s.nu)
   for idx in eachindex(z)
     z[idx] = poles(t[idx])
@@ -97,13 +97,55 @@ function zeros(s::DiscreteMimo)
   return z
 end
 
-function poles(s::DiscreteMimo)
+function poles{T1<:DiscreteSisoTf}(s::DiscreteMimo{T1})
   p = Matrix{Vector}(s.ny, s.nu)
   for idx in eachindex(p)
     p[idx] = poles(s.m[idx])
   end
   return p
 end
+
+function numvec{T1<:DiscreteSisoTf}(s::DiscreteMimo{T1})
+  num = Matrix{Vector}(s.ny, s.nu)
+  for idx in eachindex(s)
+    num[idx] = numvec(s.m[idx])
+  end
+  return num
+end
+
+function denvec{T1<:DiscreteSisoTf}(s::DiscreteMimo{T1})
+  den = Matrix{Vector}(s.ny, s.nu)
+  for idx in eachindex(s)
+    den[idx] = denvec(s.m[idx])
+  end
+  return den
+end
+
+function numpoly{T1<:DiscreteSisoTf}(s::DiscreteMimo{T1})
+  num = Matrix{Vector}(s.ny, s.nu)
+  for idx in eachindex(s)
+    num[idx] = numpoly(s.m[idx])
+  end
+  return num
+end
+
+function denpoly{T1<:DiscreteSisoTf}(s::DiscreteMimo{T1})
+  den = Matrix{Vector}(s.ny, s.nu)
+  for idx in eachindex(s)
+    den[idx] = denpoly(s.m[idx])
+  end
+  return den
+end
+
+function zpkdata{T1<:DiscreteSisoTf}(s::DiscreteMimo{T1})
+  zpkdata_ = Matrix{Vector}(s.ny, s.nu)
+  for idx in eachindex(s)
+    zpkdata_[idx] = zpkdata(s.m[idx])
+  end
+  return zpkdata_
+end
+
+samplingtime{T1<:DiscreteSisoTf}(s::DiscreteMimo{T1}) = s.Ts
 
 ndims(s::DiscreteMimo)  = 2
 size(s::DiscreteMimo)   = (s.ny, s.nu)
@@ -148,8 +190,7 @@ end
 start(s::DiscreteMimo)       = 1
 next(s::DiscreteMimo, state) = (s.m[state], state+1)
 done(s::DiscreteMimo, state) = state > length(s)
-eltype{T1<:Real}(::Type{DiscreteMimo{DiscreteSisoRational{T1}}}) = DiscreteMimo{DiscreteSisoRational{T1}}
-eltype{T1<:Number, T2<:Real}(::Type{DiscreteMimo{DiscreteSisoZpk{T1,T2}}}) = DiscreteMimo{DiscreteSisoZpk{T1,T2}}
+eltype{T1<:DiscreteSisoTf}(s::DiscreteMimo{T1}) = T1
 length(s::DiscreteMimo) = length(s.m)
 eachindex(s::DiscreteMimo) = 1:length(s)
 endof(s::DiscreteMimo) = length(s)
@@ -217,6 +258,7 @@ end
       s1::DiscreteMimo{T1}, s2::DiscreteMimo{T2})                    = +(s1, s2)
 
 -{T1<:DiscreteSisoTf}(s::DiscreteMimo{T1})                   = tf(-s.m)
+
 -{T1<:DiscreteSisoTf, T2<:Real}(s::DiscreteMimo{T1}, n::Matrix{T2}) = +(s, -n)
 -{T1<:DiscreteSisoTf, T2<:Real}(n::Matrix{T2}, s::DiscreteMimo{T1}) = +(-n, s)
 -{T1<:DiscreteSisoTf, T2<:DiscreteSisoTf}(s1::DiscreteMimo{T1},s2::DiscreteMimo{T2}) = +(s1,-s2)
@@ -225,6 +267,9 @@ end
 
 .-{T1<:DiscreteSisoTf, T2<:Real}(n::T2, s::DiscreteMimo{T1}) = +(-n, s)
 .-{T1<:DiscreteSisoTf, T2<:Real}(s::DiscreteMimo{T1}, n::T2) = +(s,-n)
+
+.-{T1<:DiscreteSisoTf, T2<:Real}(n::Matrix{T2}, s::DiscreteMimo{T1}) = -(n, s)
+.-{T1<:DiscreteSisoTf, T2<:Real}(s::DiscreteMimo{T1}, n::Matrix{T2}) = -(s, n)
 
 function *{T1<:DiscreteSisoTf, T2<:DiscreteSisoTf}(
   s1::DiscreteMimo{T1}, s2::DiscreteMimo{T2})
@@ -251,10 +296,10 @@ end
 
 .*{T1<:DiscreteSisoTf, T2<:Real}(n::T2, s::DiscreteMimo{T1}) = *(n, s)
 .*{T1<:DiscreteSisoTf, T2<:Real}(s::DiscreteMimo{T1}, n::T2) = *(s, n)
-.*{T1<:DiscreteSisoTf, T2<:Real}(s::DiscreteMimo{T1}, n::Matrix{T2}) =
-      DiscreteMimo(s.m*n, s.Ts)
-.*{T1<:DiscreteSisoTf, T2<:Real}(n::Matrix{T2}, s::DiscreteMimo{T1}) =
-      DiscreteMimo(n*s.m, s.Ts)
+.*{T1<:DiscreteSisoTf, T2<:Real}(n::Matrix{T2}, s::DiscreteMimo{T1}) = *(n, s)
+.*{T1<:DiscreteSisoTf, T2<:Real}(s::DiscreteMimo{T1}, n::Matrix{T2}) = *(s, n)
+.*{T1<:DiscreteSisoTf, T2<:DiscreteSisoTf}(
+  s1::DiscreteMimo{T1}, s2::DiscreteMimo{T2}) = *(s1,s2)
 
 function /{T1<:DiscreteSisoTf, T2<:Real}(n::T2, s::DiscreteMimo{T1})
   warn("MIMO TransferFunction inversion isn't implemented yet")
@@ -262,9 +307,18 @@ function /{T1<:DiscreteSisoTf, T2<:Real}(n::T2, s::DiscreteMimo{T1})
 end
 /{T1<:DiscreteSisoTf, T2<:DiscreteSisoTf}(
   s1::DiscreteMimo{T1}, s2::DiscreteMimo{T2}) = s1*(1/s2)
+/{T1<:DiscreteSisoTf, T2<:Real}(s::DiscreteMimo{T1}, n::T2) = s*(1/n)
+function /{T1<:DiscreteSisoTf, T2<:Real}(n::Matrix{T2}, t::DiscreteMimo{T1})
+  warn("MIMO TransferFunction inversion isn't implemented yet")
+  throw(DomainError())
+end
+/{T1<:DiscreteSisoTf, T2<:Real}(s::DiscreteMimo{T1}, n::Matrix{T2}) =
+  tf(s.m/n)
 
-./{T1<:DiscreteSisoTf, T2<:Real}(s::DiscreteMimo{T1}, n::T2) = s*(1/n)
-./{T1<:DiscreteSisoTf, T2<:Real}(n::T2, s::DiscreteMimo{T1}) = DiscreteMimo(n./s.m, s.Ts)
+./{T1<:DiscreteSisoTf, T2<:Real}(s::DiscreteMimo{T1}, n::T2) = s/n
+./{T1<:DiscreteSisoTf, T2<:Real}(n::T2, s::DiscreteMimo{T1}) = n/s
+./{T1<:DiscreteSisoTf, T2<:Real}(s::DiscreteMimo{T1}, n::Matrix{T2}) = s/n
+./{T1<:DiscreteSisoTf, T2<:Real}(n::Matrix{T2}, s::DiscreteMimo{T1}) = n/s
 
 function =={T1<:DiscreteSisoTf, T2<:DiscreteSisoTf}(
   s1::DiscreteMimo{T1}, s2::DiscreteMimo{T2})

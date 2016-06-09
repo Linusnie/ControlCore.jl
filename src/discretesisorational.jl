@@ -29,19 +29,87 @@ Base.convert{T1<:Real, T2<:Real}(::Type{DiscreteSisoRational{T1}}, sys::Discrete
 Base.promote_rule{T1<:Real, T2<:Real}(::Type{DiscreteSisoRational{T1}}, ::Type{T2}) = DiscreteSisoRational{promote_type(T1,T2)}
 Base.convert{T1<:Real, T2<:Real}(::Type{DiscreteSisoRational{T1}}, x::T2) = tf([convert(T1,x)], [one(T1)], zero(Float64))
 
-## IDENTITIES ##
 Base.zero{T1<:Real}(::Type{DiscreteSisoRational{T1}}) = tf(zero(Poly{T1}), one(Poly{T1}),zero(Float64))
 Base.zero{T1<:Real}(s::DiscreteSisoRational{T1}) = tf(zero(Poly{T1}), one(Poly{T1}), s.Ts)
 Base.one{T1<:Real}(::Type{DiscreteSisoRational{T1}}) = tf(one(Poly{T1}), one(Poly{T1}),zero(Float64))
 Base.one{T1<:Real}(s::DiscreteSisoRational{T1}) = tf(one(Poly{T1}), one(Poly{T1}), s.Ts)
 
-function zeros(s::DiscreteSisoRational)
-  return roots(s.num)
+function zeros{T1<:Real}(s::DiscreteSisoRational{T1})
+  return copy(roots(s.num))
 end
 
-function poles(s::DiscreteSisoRational)
-  return roots(s.den)
+function poles{T1<:Real}(s::DiscreteSisoRational{T1})
+  return copy(roots(s.den))
 end
+
+function numvec{T1<:Real}(s::DiscreteSisoRational{T1})
+  return copy(coeffs(s.num)[end:-1:1])
+end
+
+function denvec{T1<:Real}(s::DiscreteSisoRational{T1})
+  return copy(coeffs(s.den)[end:-1:1])
+end
+
+function numpoly{T1<:Real}(s::DiscreteSisoRational{T1})
+  return copy(s.num)
+end
+
+function denpoly{T1<:Real}(s::DiscreteSisoRational{T1})
+  return copy(s.num)
+end
+
+function zpkdata{T1<:Real}(s::DiscreteSisoRational{T1})
+  return (zeros(s), poles(s), num[1]/den[1])
+end
+
+function samplingtime{T1<:Real}(s::DiscreteSisoRational{T1})
+  return copy(s.ts)
+end
+
+ndims(s::DiscreteSisoRational)  = 1
+size(s::DiscreteSisoRational)   = 1
+
+function getindex(s::DiscreteSisoRational, idx::Int)
+  if idx != 1
+    warn("A SISO transfer function only has one element")
+    throw(DomainError())
+  end
+  s
+end
+
+function getindex(s::DiscreteSisoRational, rows, cols)
+  if rows != 1 || cols != 1
+    warn("A SISO transfer function only has one element")
+    throw(DomainError())
+  end
+  s
+end
+
+getindex(s::DiscreteSisoRational, ::Colon, ::Colon) = s
+
+function getindex(s::DiscreteSisoRational, ::Colon, cols)
+  if cols != 1
+    warn("A SISO transfer function only has one element")
+    throw(DomainError())
+  end
+  s
+end
+
+function getindex(s::DiscreteSisoRational, rows, ::Colon)
+  if rows != 1
+    warn("A SISO transfer function only has one element")
+    throw(DomainError())
+  end
+  s
+end
+
+start(s::DiscreteSisoRational)       = 1
+next(s::DiscreteSisoRational, state) = (s.m[state], state+1)
+done(s::DiscreteSisoRational, state) = state > length(s)
+eltype{T1<:Real}(::Type{DiscreteSisoRational{T1}}) = DiscreteSisoRational{T1}
+length(s::DiscreteSisoRational) = 1
+eachindex(s::DiscreteSisoRational) = 1:length(s)
+endof(s::DiscreteSisoRational) = length(s)
 
 showcompact(io::IO, s::DiscreteSisoRational) = print(io, summary(s))
 
@@ -85,12 +153,11 @@ end
 
 function summary(io::IO, s::DiscreteSisoRational)
   if s.Ts > 0
-    println(io, string("tf(nu=1, ny=1, Ts=", s.Ts, "."))
+    println(io, string("tf(nu=1, ny=1, Ts=", s.Ts, ")."))
   elseif s.Ts == 0
-    println(io, string("tf(nu=1, ny=1, Ts=unspecified."))
+    println(io, string("tf(nu=1, ny=1, Ts=unspecified)."))
   end
 end
-
 
 function +{T1<:Real, T2<:Real}(
     s1::DiscreteSisoRational{T1},

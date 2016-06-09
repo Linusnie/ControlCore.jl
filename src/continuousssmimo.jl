@@ -1,5 +1,3 @@
-# continuous state space type definition
-
 immutable ContinuousSsMimo{T<:Real} <: ContinuousSs
   A::Matrix{T}
   B::Matrix{T}

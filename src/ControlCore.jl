@@ -41,6 +41,13 @@ export
 using Polynomials
 
 include("abstract.jl")
-include("continuousssmimo.jl")
+include("display.jl")
+include("discretesisorational.jl")
+include("discretesisozpk.jl")
+include("discretemimo.jl")
+include("continuoussisorational.jl")
+include("continuoussisozpk.jl")
+include("continuousmimo.jl")
+
 
 end # module

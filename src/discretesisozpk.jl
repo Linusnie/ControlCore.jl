@@ -6,39 +6,108 @@ immutable DiscreteSisoZpk{T1<:AbstractFloat, T2<:AbstractFloat} <: DiscreteSisoT
   function call{T1, T2}(::Type{DiscreteSisoZpk}, z::Vector{Complex{T1}},
     p::Vector{Complex{T1}}, k::T2, Ts::Float64)
     Ts_ = max(Ts, zero(Float64))
-    new{T1, T2}(z, p, k, Ts_)
+    new{T1, T2}(copy(z), copy(p), k, Ts_)
   end
 end
 
-function zpk{T1<:Number, T2<:Number, T3<:Real, T4<:Real}(z::Vector{T1}, p::Vector{T2}, k::T3, Ts::T4)
+function zpk{T1<:Number, T2<:Number, T3<:AbstractFloat, T4<:AbstractFloat}(z::Vector{T1}, p::Vector{T2}, k::T3, Ts::T4)
   T  = promote_type(real(T1), real(T2))
   z_ = convert(Vector{Complex{Float64}},z)
   p_ = convert(Vector{Complex{Float64}},p)
   DiscreteSisoZpk(z_, p_, Float64(k), Float64(Ts))
 end
 
-function zpk{T1<:Real, T2<:Real}(k::T1, Ts::T2)
-  zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), k, Float64(Ts))
+function zpk{T1<:Number, T2<:Real}(k::T1, Ts::T2)
+  zpk(Vector{Complex{Float64}}(), Vector{Complex{Float64}}(), k, Float64(Ts))
 end
 
-Base.promote_rule{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(::Type{DiscreteSisoZpk{T1, T2}}, ::Type{DiscreteSisoZpk{T3, T4}}) = DiscreteSisoZpk{promote_type(T1, T3), promote_type(T2, T4)}
-Base.convert{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(::Type{DiscreteSisoZpk{T1, T2}}, s::DiscreteSisoZpk{T3, T4}) = DiscreteSisoZpk(s.z, s.p,  convert(T2, s.k), s.Ts)
+Base.promote_rule{T1<:AbstractFloat, T2<:AbstractFloat, T3<:AbstractFloat, T4<:AbstractFloat}(::Type{DiscreteSisoZpk{T1, T2}}, ::Type{DiscreteSisoZpk{T3, T4}}) = DiscreteSisoZpk{promote_type(T1, T3), promote_type(T2, T4)}
+Base.convert{T1<:AbstractFloat, T2<:AbstractFloat, T3<:AbstractFloat, T4<:AbstractFloat}(::Type{DiscreteSisoZpk{T1, T2}}, s::DiscreteSisoZpk{T3, T4}) = DiscreteSisoZpk(s.z, s.p,  convert(T2, s.k), s.Ts)
 
-Base.promote_rule{T1<:Real, T2<:Real, T3<:Real}(::Type{DiscreteSisoZpk{T1, T2}}, ::Type{T3}) = DiscreteSisoZpk{T1, promote_type(T2, T3)}
-Base.convert{T1<:Real, T2<:Real, T3<:Real}(::Type{DiscreteSisoZpk{T1, T2}}, x::T3) = zpk([one(T1)], [one(T1)], convert(T2, x), zero(Float64))
+Base.promote_rule{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(::Type{DiscreteSisoZpk{T1, T2}}, ::Type{T3}) = DiscreteSisoZpk{T1, promote_type(T2, T3)}
+Base.convert{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(::Type{DiscreteSisoZpk{T1, T2}}, x::T3) = zpk([one(T1)], [one(T1)], convert(T2, x), zero(Float64))
 
-Base.one{T1<:Real, T2<:Real}(::Type{DiscreteSisoZpk{T1, T2}}) = zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), one(T2), zero(Float64))
-Base.one{T1<:Real, T2<:Real}(s::DiscreteSisoZpk{T1, T2}) = zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), one(T2), s.Ts)
-Base.zero{T1<:Real, T2<:Real}(::Type{DiscreteSisoZpk{T1, T2}}) = zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), zero(T2), zero(Float64))
-Base.zero{T1<:Real, T2<:Real}(s::DiscreteSisoZpk{T1, T2}) = zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), zero(T2), s.Ts)
+Base.one{T1<:AbstractFloat, T2<:AbstractFloat}(::Type{DiscreteSisoZpk{T1, T2}}) = zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), one(T2), zero(Float64))
+Base.one{T1<:AbstractFloat, T2<:AbstractFloat}(s::DiscreteSisoZpk{T1, T2}) = zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), one(T2), s.Ts)
+Base.zero{T1<:AbstractFloat, T2<:AbstractFloat}(::Type{DiscreteSisoZpk{T1, T2}}) = zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), zero(T2), zero(Float64))
+Base.zero{T1<:AbstractFloat, T2<:AbstractFloat}(s::DiscreteSisoZpk{T1, T2}) = zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), zero(T2), s.Ts)
 
-function zeros(s::DiscreteSisoZpk)
-  return s.z
+function zeros{T1<:AbstractFloat, T2<:AbstractFloat}(s::DiscreteSisoZpk{T1, T2})
+  return copy(s.z)
 end
 
-function poles(s::DiscreteSisoZpk)
-  return s.p
+function poles{T1<:AbstractFloat, T2<:AbstractFloat}(s::DiscreteSisoZpk{T1, T2})
+  return copy(s.p)
 end
+
+function numvec{T1<:AbstractFloat, T2<:AbstractFloat}(s::DiscreteSisoZpk{T1, T2})
+  return coeffs(poly(s.z))[end:-1:1]
+end
+
+function denvec{T1<:AbstractFloat, T2<:AbstractFloat}(s::DiscreteSisoZpk{T1, T2})
+  return coeffs(poly(s.p))[end:-1:1]
+end
+
+function numpoly{T1<:AbstractFloat, T2<:AbstractFloat}(s::DiscreteSisoZpk{T1, T2})
+  return poly(s.z)
+end
+
+function denpoly{T1<:AbstractFloat, T2<:AbstractFloat}(s::DiscreteSisoZpk{T1, T2})
+  return poly(s.p)
+end
+
+function zpkdata{T1<:AbstractFloat, T2<:AbstractFloat}(s::DiscreteSisoZpk{T1, T2})
+  return copy(s.k)
+end
+
+function samplingtime{T1<:AbstractFloat, T2<:AbstractFloat}(s::DiscreteSisoZpk{T1, T2})
+  return copy(s.ts)
+end
+
+ndims(s::DiscreteSisoZpk)  = 1
+size(s::DiscreteSisoZpk)   = 1
+
+function getindex(s::DiscreteSisoZpk, idx::Int)
+  if idx != 1
+    warn("A SISO transfer function only has one element")
+    throw(DomainError())
+  end
+  s
+end
+
+function getindex(s::DiscreteSisoZpk, rows, cols)
+  if rows != 1 || cols != 1
+    warn("A SISO transfer function only has one element")
+    throw(DomainError())
+  end
+  s
+end
+
+getindex(s::DiscreteSisoZpk, ::Colon, ::Colon) = s
+
+function getindex(s::DiscreteSisoZpk, ::Colon, cols)
+  if cols != 1
+    warn("A SISO transfer function only has one element")
+    throw(DomainError())
+  end
+  s
+end
+
+function getindex(s::DiscreteSisoZpk, rows, ::Colon)
+  if rows != 1
+    warn("A SISO transfer function only has one element")
+    throw(DomainError())
+  end
+  s
+end
+
+start(s::DiscreteSisoZpk)       = 1
+next(s::DiscreteSisoZpk, state) = (s.m[state], state+1)
+done(s::DiscreteSisoZpk, state) = state > length(s)
+eltype{T1<:AbstractFloat, T2<:AbstractFloat}(::Type{DiscreteSisoZpk{T1,T2}}) = DiscreteSisoZpk{T1,T2}
+length(s::DiscreteSisoZpk) = 1
+eachindex(s::DiscreteSisoZpk) = 1:length(s)
+endof(s::DiscreteSisoZpk) = length(s)
 
 showcompact(io::IO, s::DiscreteSisoZpk) = print(io, summary(s))
 
@@ -90,7 +159,7 @@ function summary(io::IO, s::DiscreteSisoZpk)
   end
 end
 
-function +{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(
+function +{T1<:AbstractFloat, T2<:AbstractFloat, T3<:AbstractFloat, T4<:AbstractFloat}(
   s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4})
   if s1.Ts == s2.Ts
     Z = s1.k*poly(s1.z)*poly(s2.p) + s2.k*poly(s2.z)*poly(s1.p)
@@ -104,7 +173,7 @@ function +{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(
   end
 end
 
-function +{T1<:Real, T2<:Real, T3<:Real}(
+function +{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(
     s::DiscreteSisoZpk{T1, T2}, n::T3)
   Z = s.k*poly(s.z) + n*poly(s.p)
   z = roots(Z)
@@ -112,26 +181,26 @@ function +{T1<:Real, T2<:Real, T3<:Real}(
   k = Z[end] # Poly is now reverse order
   return zpk(z_, p_, k, s.Ts)
 end
-# +{T1<:Real, T2<:Real, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3)  = +(s, zpk(n,s.Ts))
-+{T1<:Real, T2<:Real, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2})  = +(s, n)
+# +{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3)  = +(s, zpk(n,s.Ts))
++{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2})  = +(s, n)
 
-.+{T1<:Real, T2<:Real, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3) = +(n, s)
-.+{T1<:Real, T2<:Real, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2}) = +(s, n)
-.+{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4}) = +(s1, s2)
+.+{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3) = +(n, s)
+.+{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2}) = +(s, n)
+.+{T1<:AbstractFloat, T2<:AbstractFloat, T3<:AbstractFloat, T4<:AbstractFloat}(s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4}) = +(s1, s2)
 
--{T1<:Real, T2<:Real}(s::DiscreteSisoZpk{T1, T2}) = zpk(s.z, s.p, -s.k, s.Ts)
-function -{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(
+-{T1<:AbstractFloat, T2<:AbstractFloat}(s::DiscreteSisoZpk{T1, T2}) = zpk(s.z, s.p, -s.k, s.Ts)
+function -{T1<:AbstractFloat, T2<:AbstractFloat, T3<:AbstractFloat, T4<:AbstractFloat}(
   s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4})
   return +(s1, -s2)
 end
--{T1<:Real, T2<:Real, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3)  = +(s, -n)
--{T1<:Real, T2<:Real, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2})  = +(n, -s)
+-{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3)  = +(s, -n)
+-{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2})  = +(n, -s)
 
-.-{T1<:Real, T2<:Real, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3) = +(s, -n)
-.-{T1<:Real, T2<:Real, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2}) = +(n, -s)
-.-{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4}) = +(s1, -s2)
+.-{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3) = +(s, -n)
+.-{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2}) = +(n, -s)
+.-{T1<:AbstractFloat, T2<:AbstractFloat, T3<:AbstractFloat, T4<:AbstractFloat}(s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4}) = +(s1, -s2)
 
-function *{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(
+function *{T1<:AbstractFloat, T2<:AbstractFloat, T3<:AbstractFloat, T4<:AbstractFloat}(
   s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4})
   if s1.Ts == s2.Ts
     Ts, Ts2 = promote(s1.Ts, s2.Ts)
@@ -144,25 +213,25 @@ function *{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(
     throw(DomainError())
   end
 end
-*{T1<:Real, T2<:Real, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3)  = zpk(s.z, s.p, n*s.k, s.Ts)
-*{T1<:Real, T2<:Real, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2})  = *(s, n)
+*{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3)  = zpk(s.z, s.p, n*s.k, s.Ts)
+*{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2})  = *(s, n)
 
-.*{T1<:Real, T2<:Real, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3) = *(n, s)
-.*{T1<:Real, T2<:Real, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2}) = *(s, n)
-.*{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4}) = *(s1, s2)
+.*{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3) = *(n, s)
+.*{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2}) = *(s, n)
+.*{T1<:AbstractFloat, T2<:AbstractFloat, T3<:AbstractFloat, T4<:AbstractFloat}(s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4}) = *(s1, s2)
 
-function /{T1<:Real, T2<:Real, T3<:Real}(
+function /{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(
   n::T3, s::DiscreteSisoZpk{T1, T2})
   return zpk(s.p, s.z, n./s.k, s.Ts)
 end
-/{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4}) = s1*(1/s2)
-/{T1<:Real, T2<:Real, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3)  = s*(1/n)
+/{T1<:AbstractFloat, T2<:AbstractFloat, T3<:AbstractFloat, T4<:AbstractFloat}(s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4}) = s1*(1/s2)
+/{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3)  = s*(1/n)
 
-./{T1<:Real, T2<:Real, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2}) = n*(1/s)
-./{T1<:Real, T2<:Real, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3) = s*(1/n)
-./{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4}) = s1*(1/s2)
+./{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(n::T3, s::DiscreteSisoZpk{T1, T2}) = n*(1/s)
+./{T1<:AbstractFloat, T2<:AbstractFloat, T3<:Real}(s::DiscreteSisoZpk{T1, T2}, n::T3) = s*(1/n)
+./{T1<:AbstractFloat, T2<:AbstractFloat, T3<:AbstractFloat, T4<:AbstractFloat}(s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4}) = s1*(1/s2)
 
-function =={T1<:Real, T2<:Real, T3<:Real, T4<:Real}(
+function =={T1<:AbstractFloat, T2<:AbstractFloat, T3<:AbstractFloat, T4<:AbstractFloat}(
   s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4})
   fields = [:Ts, :z, :p, :k]
   for field in fields
@@ -173,10 +242,10 @@ function =={T1<:Real, T2<:Real, T3<:Real, T4<:Real}(
   true
 end
 
-!={T1<:Real, T2<:Real, T3<:Real, T4<:Real}(
+!={T1<:AbstractFloat, T2<:AbstractFloat, T3<:AbstractFloat, T4<:AbstractFloat}(
   s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4}) = !(s1==s2)
 
-function isapprox{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(
+function isapprox{T1<:AbstractFloat, T2<:AbstractFloat, T3<:AbstractFloat, T4<:AbstractFloat}(
     s1::DiscreteSisoZpk{T1, T2}, s2::DiscreteSisoZpk{T3, T4})
   # TODO: Implement
 end
