@@ -1,94 +1,59 @@
-# ControlCore
+# Some Thoughts on the Type Hierarchy
 
-**Build Status**
+The type system will look like this:
 
--  Unix/OSX: [![Build Status][travis-ci-img]][travis-ci-link]
--  Windows: [![Build status][appveyor-ci-img]][appveyor-ci-link]
+- abstract LtiSystem
+  - abstract SisoSystem
+    - abstract SisoTf
+      - abstract CSisoTf
+        - ContinuousRational{T<:AbstractFloat}
+        - ContinuousZpk{T<:AbstractFloat}
+      - abstract DSisoTf
+        - DiscreteRational{T<:AbstractFloat}
+        - DiscreteZpk{T<:AbstractFloat}
+    - abstract SisoSs
+      - ContinuousSsSiso{T<:AbstractFloat}
+      - DiscreteSsSiso{T<:AbstractFloat}
+  - abstract MimoSystem
+    - MimoTf{S<:SisoSystem}
+    - MimoSs{T<:AbstractFloat}
 
-Core control systems functionality for **analysis**, **design** and
-**identification** tools to be implemented later on.
+# Interface Requirements
 
-This repository is meant to provide a basic set of tools, *i.e.*, *transfer
-function* and *state space* types as well as the basic mathematical operations
-defined on them, in a way that other tools for **analyzing** or **identifying**
-control systems would use the same set of functionality in a transparent,
-coherent way.
+For **SisoSystem**s, the following functions are required:
 
-The planned functionality to include in this toolbox is (ticked boxes are
-implemented):
+- numpoly{S<:SisoSystem}(sys::S) should return Poly{T}
+- denpoly{S<:SisoSystem}(sys::S) should return Poly{T}
+- numvec{S<:SisoSystem}(sys::S) should return Vector{T}
+- denvec{S<:SisoSystem}(sys::S) should return Vector{T}
+- zpkdata{S<:SisoSystem}(sys::S) should return a tuple of (z, p, k)
+- poles{S<:SisoSystem}(sys::S) should return roots(denpoly(sys))
+- zeros{S<:SisoSystem}(sys::S) should return roots(denpoly(sys))
 
-**Creation of types**
+for doing, for example, basic mathematical operations among different
+types of transfer functions.
 
-- [ ] `tf`,
-- [ ] `zpk`,
-- [ ] `ss`.
+For **MimoSystem**s, we need to have:
 
-**Conversions and promotions**
+- getmatrix{S<:MimoSystem}(sys::S) should return the input-output mapping (mat)
+- ...
 
-- [ ] `convert`,
-- [ ] `promote_rule`.
+for functions to be defined later on. Then, we can have mappings from the
+corresponding Siso types directly to the Mimo versions.
 
-**Identity overloading**
+We need to require the **LtiSystem** to have:
 
-- [ ] `one`,
-- [ ] `zero`,
-- [ ] `inv`.
+- numstates{S<:LtiSystem}(sys::S) should return nx in Int
+- numinputs{S<:LtiSystem}(sys::S) should return nu in Int
+- numoutputs{S<:LtiSystem}(sys::S) should return ny in Int
+- isdiscrete(sys::LtiSystem) should return true/false for respective systems
+- samplingtime{S<:LtiSystem}(sys::S) should return zero(T) for continuous and
+  gain-only discrete time systems, and Ts::T for the rest of the discrete time
+  systems.
+- eltype
+- start
+- next
+- done
+- ...
 
-**Slicing functions**
-
-- [ ] `ndims`,
-- [ ] `size`,
-- [ ] `getindex`.
-
-**Iteration interface**
-
-- [ ] `start`,
-- [ ] `next`,
-- [ ] `done`,
-- [ ] `eltype`,
-- [ ] `length`,
-- [ ] `eachindex`,
-- [ ] `endof`.
-
-**Printing functions**
-
-- [ ] `showcompact`,
-- [ ] `show`,
-- [ ] `showall`,
-- [ ] `summary`.
-
-**Basic operations**
-
-- [ ] `+`,
-- [ ] `.+`,
-- [ ] `-`,
-- [ ] `.-`,
-- [ ] `*`,
-- [ ] `.*`,
-- [ ] `/`,
-- [ ] `./`,
-- [ ] `==`,
-- [ ] `!=`,
-- [ ] `isapprox`.
-
-**Basic functionality**
-
-- [ ] `degree`
-- [ ] `zeros`
-- [ ] `poles`
-- [ ] `numvec`
-- [ ] `denvec`
-- [ ] `numpoly`
-- [ ] `denpoly`
-- [ ] `evalfreq`
-
-**Interconnections**
-
-- [ ] `series`,
-- [ ] `parallel`,
-- [ ] `feedback`.
-
-[travis-ci-img]: https://travis-ci.org/KTH-AC/ControlCore.jl.svg?branch=master
-[travis-ci-link]: https://travis-ci.org/KTH-AC/ControlCore.jl
-[appveyor-ci-img]: https://ci.appveyor.com/api/projects/status/geqrrlwve5ycjh0a/branch/master?svg=true
-[appveyor-ci-link]: https://ci.appveyor.com/project/aytekinar/controlcore-jl/branch/master
+for iteration/slicing/etc. functions to work properly.
