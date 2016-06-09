@@ -73,13 +73,13 @@ implemented):
 
 **Basic functionality**
 
-- [ ] `degree`
-- [ ] `zeros`
-- [ ] `poles`
-- [ ] `numvec`
-- [ ] `denvec`
-- [ ] `numpoly`
-- [ ] `denpoly`
+- [ ] `degree`,
+- [ ] `zeros`,
+- [ ] `poles`,
+- [ ] `numvec`,
+- [ ] `denvec`,
+- [ ] `numpoly`,
+- [ ] `denpoly`.
 
 **Interconnections**
 
@@ -92,7 +92,7 @@ implemented):
 The type system will look like this:
 
 - `abstract LtiSystem`
-  - `abstract SisoSystem{T<:Real}`
+  - `abstract SisoSystem{T<:Real} <: LtiSystem`
     - `abstract SisoTf{T<:AbstractFloat} <: SisoSystem{T}`
       - `abstract CSisoTf{T} <: SisoTf{T}`
         - `CSisoRational{T} <: CSisoTf{T}`
@@ -103,11 +103,11 @@ The type system will look like this:
     - `abstract SisoSs{T} <: SisoSystem{T}`
       - `CSisoSs{T} <: SisoSs{T}`
       - `DSisoSs{T} <: SisoSs{T}`
-  - `abstract MimoSystem`
-    - `CMimo{T<:CSiso}`
-    - `CMimoSs{T<:Real}`
-    - `DMimo{T<:DSiso}`
-    - `DMimoSs{T<:Real}`
+  - `abstract MimoSystem{T<:SisoSystem}`
+    - `CMimo{T<:CSiso} <: MimoSystem{T}`
+    - `CMimoSs{T<:Real} <: MimoSystem`
+    - `DMimo{T<:DSiso} <: MimoSystem{T}`
+    - `DMimoSs{T<:Real} <: MimoSystem`
 - `CSiso = Union{CSisoTf,CSisoSs}`
 - `DSiso = Union{DSisoTf,DSisoSs}`
 
