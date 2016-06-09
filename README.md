@@ -92,20 +92,24 @@ implemented):
 The type system will look like this:
 
 - `abstract LtiSystem`
-  - `abstract SisoSystem`
-    - `abstract SisoTf`
-      - `abstract CSisoTf`
-        - `ContinuousRational{T<:AbstractFloat}`
-        - `ContinuousZpk{T<:AbstractFloat}`
-      - `abstract DSisoTf`
-        - `DiscreteRational{T<:AbstractFloat}`
-        - `DiscreteZpk{T<:AbstractFloat}`
-    - `abstract SisoSs`
-      - `ContinuousSsSiso{T<:AbstractFloat}`
-      - `DiscreteSsSiso{T<:AbstractFloat}`
+  - `abstract SisoSystem{T<:Real}`
+    - `abstract SisoTf{T<:AbstractFloat} <: SisoSystem{T}`
+      - `abstract CSisoTf{T} <: SisoTf{T}`
+        - `CSisoRational{T} <: CSisoTf{T}`
+        - `CSisoZpk{T} <: CSisoTf{T}`
+      - `abstract DSisoTf{T} <: SisoTf{T}`
+        - `DSisoRational{T} <: DSisoTf{T}`
+        - `DSisoZpk{T} <: DSisoTf{T}`
+    - `abstract SisoSs{T} <: SisoSystem{T}`
+      - `CSisoSs{T} <: SisoSs{T}`
+      - `DSisoSs{T} <: SisoSs{T}`
   - `abstract MimoSystem`
-    - `MimoTf{S<:SisoSystem}`
-    - `MimoSs{T<:AbstractFloat}`
+    - `CMimoTf{T<:CSiso}`
+    - `CMimoSs{T<:Real}`
+    - `DMimoTf{T<:DSiso}`
+    - `DMimoSs{T<:Real}`
+- `CSiso = Union{CSisoTf,CSisoSs}`
+- `DSiso = Union{DSisoTf,DSisoSs}`
 
 # Interface Requirements
 
