@@ -34,8 +34,7 @@ export
   numvec,
   denvec,
   numpoly,
-  denpoly,
-  evalfreq
+  denpoly
 
 # Polynomials package is needed
 using Polynomials
@@ -48,6 +47,7 @@ include("discretemimo.jl")
 include("continuoussisorational.jl")
 include("continuoussisozpk.jl")
 include("continuousmimo.jl")
-
+include("continuoussssiso.jl")
+include("continuousssmimo.jl")
 
 end # module
