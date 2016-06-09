@@ -37,6 +37,18 @@ end
 
 # creation of continuous state space types
 
+ss{T<:Real}(A::Matrix{T}, B::Matrix{T}, C::Matrix{T}, D::Matrix{T}) =
+  ContinuousSsMimo(A, B, C, D)
+
+ss{T<:Real}(A::T, B::Matrix{T}, C::Matrix{T}, D::Matrix{T}) =
+  ContinuousSsMimo(fill(A, 1, 1), B, C, D)
+
+ss{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(A::Matrix{T1}, B::Matrix{T2},
+  C::Matrix{T3}, D::Matrix{T4}) = ContinuousSsMimo(promote(A, B, C, D)...)
+
+ss{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(A::T1, B::Matrix{T2}, C::Matrix{T3},
+  D::Matrix{T4}) = ContinuousSsMimo(promote(fill(A, 1, 1), B, C, D)...)
+
 function ss{T1<:Real, n1, T2<:Real, n2, T3<:Real, n3, T4<:Real, n4}(
   A::Array{T1,n1}, B::Array{T2,n2}, C::Array{T3,n3}, D::Array{T4,n4})
   @assert 0 < n1 < 3 "A can have at most 2 dimensions"
@@ -66,13 +78,11 @@ function ss{T1<:Real, n1, T2<:Real, n2, T3<:Real, n3, T4<:Real, n4}(
     reshape(C, mc, nc)) : C
 
   # if D is a vector, it should be upgraded to a matrix
-  d = isempty(D) ? zeros(size(c, 1), size(b, 2)) :
+  d = isempty(D) ? zeros(T4, size(c, 1), size(b, 2)) :
     ((n4 == one(n4)) ? reshape(D, size(D, 1), size(D, 2)) : D)
 
   ContinuousSsMimo(promote(a,b,c,d)...)
 end
-
-ss{T<:Real}(g::T) = ss(g*ones(T, 1, 1))
 
 function ss{T<:Real}(g::Vector{T})
   a = zeros(T, 0, 0)
@@ -92,6 +102,23 @@ function ss{T<:Real}(g::Matrix{T})
   ContinuousSsMimo(a,b,c,g)
 end
 
+# conversion and promotion
+
+promote_rule{T1<:Real, T2<:Real}(::Type{ContinuousSsMimo{T1}},
+  ::Type{T2}) = ContinuousSsMimo{promote_type(T1, T2)}
+convert{T1<:Real, T2<:Real}(::Type{ContinuousSsMimo{T1}}, g::T2) =
+  ss(fill(convert(T1, g), 1, 1))
+
+promote_rule{T1<:Real, T2<:Real}(::Type{ContinuousSsMimo{T1}},
+  ::Type{Vector{T2}}) = ContinuousSsMimo{promote_type(T1, T2)}
+convert{T1<:Real, T2<:Real}(::Type{ContinuousSsMimo{T1}}, g::Vector{T2}) =
+  ss(convert(Matrix{T1}, reshape(g, size(g, 1), 1)))
+
+promote_rule{T1<:Real, T2<:Real}(::Type{ContinuousSsMimo{T1}},
+  ::Type{Matrix{T2}}) = ContinuousSsMimo{promote_type(T1, T2)}
+convert{T1<:Real, T2<:Real}(::Type{ContinuousSsMimo{T1}}, g::Matrix{T2}) =
+  ss(convert(Matrix{T1}, g))
+
 # overloading identities
 
 one{T<:Real}(s::ContinuousSsMimo{T})        = ss(ones(T, 1, 1))
@@ -103,21 +130,25 @@ zero{T<:Real}(::Type{ContinuousSsMimo{T}})  = ss(zeros(T, 1, 1))
 
 function inv{T<:Real}(s::ContinuousSsMimo{T})
   # TODO: Implement
+  throw(ErrorException("inv(s) for s::ContinuousSsMimo is not implemented"))
 end
 
 function zeros{T<:Real}(s::ContinuousSsMimo{T})
   # TODO: Implement
+  throw(ErrorException("zeros(s) for s::ContinuousSsMimo is not implemented"))
 end
 
 function poles{T<:Real}(s::ContinuousSsMimo{T})
   # TODO: Implement
+  throw(ErrorException("poles(s) for s::ContinuousSsMimo is not implemented"))
 end
 
 # overload slicing functions
 
 ndims{T<:Real}(s::ContinuousSsMimo{T})          = 2
-size{T<:Real}(s::ContinuousSsMimo{T})           = (s.ny, s.nu)
-size{T<:Real}(s::ContinuousSsMimo{T}, dim::Int) = dim > ndims(s) ? 1 : size(s)[dim]
+size{T<:Real}(s::ContinuousSsMimo{T})           = size(s.D)
+size{T<:Real}(s::ContinuousSsMimo{T}, dim::Int) =
+  dim > ndims(s) ? 1 : size(s.D)[dim]
 
 function getindex{T<:Real}(s::ContinuousSsMimo{T}, idx::Int)
   if idx < 1 || idx > length(s.D)
@@ -126,9 +157,10 @@ function getindex{T<:Real}(s::ContinuousSsMimo{T}, idx::Int)
   end
 
   col, row = divrem(idx-1, s.ny)
+  col += 1
+  row += 1
 
-  ContinuousSsMimo(s.A, hcat(s.B[:, col+1]), s.C[row+1, :],
-    fill(s.D[row+1, col+1], 1, 1))
+  ContinuousSsSiso(s.A, s.B[:, col], vec(s.C[row, :]), s.D[row, col])
 end
 
 getindex{T<:Real}(s::ContinuousSsMimo{T}, ::Colon) = s
@@ -142,9 +174,10 @@ function getindex{T<:Real}(s::ContinuousSsMimo{T}, row::Int, col::Int)
     throw(BoundsError(s.B, col))
   end
 
-  ContinuousSsMimo(s.A, hcat(s.B[:, col]), s.C[row, :],
-    fill(s.D[row, col], 1, 1))
+  ContinuousSsSiso(s.A, s.B[:, col], vec(s.C[row, :]), s.D[row, col])
 end
+
+getindex{T<:Real}(s::ContinuousSsMimo{T}, ::Colon, ::Colon) = s
 
 function getindex{T<:Real}(s::ContinuousSsMimo{T}, rows, cols)
   b = try
@@ -165,8 +198,6 @@ function getindex{T<:Real}(s::ContinuousSsMimo{T}, rows, cols)
 
   ContinuousSsMimo(s.A, b, c, d)
 end
-
-getindex{T<:Real}(s::ContinuousSsMimo{T}, ::Colon, ::Colon) = s
 
 function getindex{T<:Real}(s::ContinuousSsMimo{T}, ::Colon, cols)
   b = try
@@ -242,10 +273,10 @@ function +{T1<:Real, T2<:Real}(s1::ContinuousSsMimo{T1}, s2::ContinuousSsMimo{T2
     throw(DomainError())
   end
 
-  T3 = promote_type(T1, T2)
+  T = promote_type(T1, T2)
 
-  a = vcat(hcat(s1.A, zeros(T3, s1.nx, s2.nx)),
-          hcat(zeros(T3, s2.nx, s1.nx), s2.A))
+  a = vcat(hcat(s1.A, zeros(T, s1.nx, s2.nx)),
+          hcat(zeros(T, s2.nx, s1.nx), s2.A))
   b = vcat(s1.B, s2.B)
   c = hcat(s1.C, s2.C)
   d = s1.D + s2.D
@@ -278,10 +309,10 @@ function -{T1<:Real, T2<:Real}(s1::ContinuousSsMimo{T1}, s2::ContinuousSsMimo{T2
     throw(DomainError())
   end
 
-  T3 = promote_type(T1, T2)
+  T = promote_type(T1, T2)
 
-  a = vcat(hcat(s1.A, zeros(T3, s1.nx, s2.nx)),
-          hcat(zeros(T3, s2.nx, s1.nx), s2.A))
+  a = vcat(hcat(s1.A, zeros(T, s1.nx, s2.nx)),
+          hcat(zeros(T, s2.nx, s1.nx), s2.A))
   b = vcat(s1.B, s2.B)
   c = hcat(s1.C, -s2.C)
   d = s1.D - s2.D
@@ -314,10 +345,10 @@ function *{T1<:Real, T2<:Real}(s1::ContinuousSsMimo{T1}, s2::ContinuousSsMimo{T2
     throw(DomainError())
   end
 
-  T3 = promote_type(T1, T2)
+  T = promote_type(T1, T2)
 
   a = vcat(hcat(s1.A, s1.B*s2.C),
-          hcat(zeros(T3, s2.nx, s1.nx), s2.A))
+          hcat(zeros(T, s2.nx, s1.nx), s2.A))
   b = vcat(s1.B*s2.D, s2.B)
   c = hcat(s1.C, s1.D*s2.C)
   d = s1.D * s2.D
@@ -336,7 +367,7 @@ function *{T1<:Real, T2<:Real}(s::ContinuousSsMimo{T1}, g::Matrix{T2})
     throw(DomainError())
   end
 
-  ContinuousSsMimo(promote(copy(s.A), s.B*g, copy(s.C), s.D*g))
+  ContinuousSsMimo(promote(copy(s.A), s.B*g, copy(s.C), s.D*g)...)
 end
 
 function *{T1<:Real, T2<:Real}(g::Matrix{T2}, s::ContinuousSsMimo{T1})
@@ -345,7 +376,7 @@ function *{T1<:Real, T2<:Real}(g::Matrix{T2}, s::ContinuousSsMimo{T1})
     throw(DomainError())
   end
 
-  ContinuousSsMimo(promote(copy(s.A), copy(s.B), g*s.C, g*s.D))
+  ContinuousSsMimo(promote(copy(s.A), copy(s.B), g*s.C, g*s.D)...)
 end
 
 .*{T1<:Real, T2<:Real}(s1::ContinuousSsMimo{T1}, s2::ContinuousSsMimo{T2}) = *(s1, s2)
@@ -359,8 +390,11 @@ end
   ContinuousSsMimo(promote(copy(s.A), s.B/g, copy(s.C), s.D/g)...)
 /{T1<:Real, T2<:Real}(g::T2, s::ContinuousSsMimo{T1}) = *(g, inv(s))
 
-/{T1<:Real, T2<:Real}(s::ContinuousSsMimo{T1}, g::Matrix{T2}) =
-  ContinuousSsMimo(promote(copy(s.A), s.B*inv(g), copy(s.C), s.D*inv(g))...)
+function /{T1<:Real, T2<:Real}(s::ContinuousSsMimo{T1}, g::Matrix{T2})
+  ginv = inv(g)
+
+  ContinuousSsMimo(promote(copy(s.A), s.B*ginv, copy(s.C), s.D*ginv)...)
+end
 /{T1<:Real, T2<:Real}(g::Matrix{T2}, s::ContinuousSsMimo{T1}) = *(g, inv(s))
 
 ./{T1<:Real, T2<:Real}(s1::ContinuousSsMimo{T1}, s2::ContinuousSsMimo{T2}) = /(s1, s2)
@@ -369,6 +403,7 @@ end
 
 function =={T1<:Real, T2<:Real}(s1::ContinuousSsMimo{T1}, s2::ContinuousSsMimo{T2})
   # TODO: Implement
+  throw(ErrorException("==(s1,s2) for ContinuousSsMimo is not implemented"))
 end
 
 !={T1<:Real, T2<:Real}(s1::ContinuousSsMimo{T1}, s2::ContinuousSsMimo{T2}) = !(s1 == s2)
@@ -376,4 +411,5 @@ end
 function isapprox{T1<:Real, T2<:Real}(s1::ContinuousSsMimo{T1},
   s2::ContinuousSsMimo{T2})
   # TODO: Implement
+  throw(ErrorException("isapprox(s1,s2) ContinuousSsMimo is not implemented"))
 end
