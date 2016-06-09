@@ -39,7 +39,13 @@ export
 # Polynomials package is needed
 using Polynomials
 
-include("abstract.jl")
+include("abstract/ltisystem.jl")
+include("abstract/sisosystem.jl")
+include("abstract/sisotf.jl")
+include("abstract/csisotf.jl")
+include("abstract/dsisotf.jl")
+include("abstract/sisoss.jl")
+include("abstract/mimosystem.jl")
 include("display.jl")
 include("discretesisorational.jl")
 include("discretesisozpk.jl")
