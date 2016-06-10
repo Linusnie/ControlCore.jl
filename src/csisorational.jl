@@ -77,45 +77,6 @@ function samplingtime{T1}(s::CSisoRational{T1})
   return -one(Float64)
 end
 
-ndims(s::CSisoRational)  = 1
-size(s::CSisoRational)   = 1
-
-function getindex(s::CSisoRational, idx::Int)
-  if idx != 1
-    warn("A SISO transfer function only has one element")
-    throw(DomainError())
-  end
-  s
-end
-
-function getindex(s::CSisoRational, rows, cols)
-  if rows != 1 || cols != 1
-    warn("A SISO transfer function only has one element")
-    throw(DomainError())
-  end
-  s
-end
-
-getindex(s::CSisoRational, ::Colon, ::Colon) = s
-
-function getindex(s::CSisoRational, ::Colon, cols)
-  if cols != 1
-    warn("A SISO transfer function only has one element")
-    throw(DomainError())
-  end
-  s
-end
-
-function getindex(s::CSisoRational, rows, ::Colon)
-  if rows != 1
-    warn("A SISO transfer function only has one element")
-    throw(DomainError())
-  end
-  s
-end
-
-showcompact(io::IO, s::CSisoRational) = print(io, summary(s))
-
 function show(io::IO, s::CSisoRational)
   println(io, "Continuous time rational transfer function model")
   println(io, "\ty = Gu")
@@ -125,32 +86,6 @@ function showall(io::IO, s::CSisoRational)
   show(io, s)
   println(io, "")
   printtransferfunction(io::IO, s)
-end
-
-Base.print(io::IO, s::CSisoRational) = show(io, s)
-
-function printtransferfunction(io::IO, s::CSisoRational)
-  numstr = print_poly_reverse(s.num)
-  denstr = print_poly_reverse(s.den)
-
-  # Figure out the length of the separating line
-  len_num = length(numstr)
-  len_den = length(denstr)
-  dashcount = max(len_num, len_den)
-
-  # Center the numerator or denominator
-  if len_num < dashcount
-    numstr = "$(repeat(" ", div(dashcount - len_num, 2)))$numstr"
-  else
-    denstr = "$(repeat(" ", div(dashcount - len_den, 2)))$denstr"
-  end
-  println(io, numstr)
-  println(io, repeat("-", dashcount))
-  println(io, denstr)
-end
-
-function summary(io::IO, s::CSisoRational)
-  println(io, string("tf(nu=1, ny=1)."))
 end
 
 function +{T1, T2}(

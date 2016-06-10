@@ -221,56 +221,6 @@ end
 
 samplingtime{T1}(s::CMimo{T1}) = -one(Float64)
 
-ndims(s::CMimo)  = 2
-size(s::CMimo)   = (s.ny, s.nu)
-
-function getindex(s::CMimo, idx::Int)
-  row, col = divrem(idx-1, s.ny)
-  CMimo(fill(s.m[row+1, col+1],1,1), s.Ts)
-end
-
-function getindex(s::CMimo, rows, cols)
-  s2 = try
-      [s.m[row, col] for row in rows, col in cols]
-    catch exception
-      warn("s[,j]: Index out of bounds")
-      throw(exception)
-    end
-  CMimo(s2, s.Ts)
-end
-
-getindex(s::CMimo, ::Colon, ::Colon) = CMimo(s.m, s.Ts) # returns a copy of s
-
-function getindex(s::CMimo, ::Colon, cols)
-  s2 = try
-      [s.m[row, col] for row in 1:s.ny, col in cols]
-    catch exception
-      warn("s[,j]: Index out of bounds")
-      throw(exception)
-    end
-  CMimo(s2, s.Ts)
-end
-
-function getindex(s::CMimo, rows, ::Colon)
-  s2 = try
-      [s.m[row, col] for row in rows, col in 1:s.nu]
-    catch exception
-      warn("s[,j]: Index out of bounds")
-      throw(exception)
-    end
-  CMimo(s2, s.Ts)
-end
-
-start(s::CMimo)       = 1
-next(s::CMimo, state::Int) = (s.m[state], state+1)
-done(s::CMimo, state::Int) = state > length(s)
-eltype{T<:CSiso}(s::CMimo{T}) = T
-length(s::CMimo) = length(s.m)
-eachindex(s::CMimo) = 1:length(s)
-endof(s::CMimo) = length(s)
-
-showcompact(io::IO, s::CMimo) = print(io, summary(s))
-
 function show(io::IO, s::CMimo)
   println(io, "Continuous time transfer function model")
   println(io, "\ty = Gu")
@@ -284,13 +234,6 @@ function showall{T1}(io::IO, s::CMimo{T1})
     printtransferfunction(io::IO, subs)
     println(io, "")
   end
-end
-
-function summary{T1<:Real}(s::CMimo{CSisoRational{T1}})
-  string("tf(nu=", s.nu, ", ny=", s.ny, ")")
-end
-function summary{T1<:Number}(s::CMimo{CSisoZpk{T1}})
-  string("zpk(nu=", s.nu, ", ny=", s.ny, ")")
 end
 
 function +{T1, T2}(

@@ -188,65 +188,21 @@ function zpkdata{T1}(s::DMimo{T1})
   return zpkdata_
 end
 
-samplingtime{T1}(s::DMimo{T1}) = samplingtime(s)
-
-ndims(s::DMimo)  = 2
-size(s::DMimo)   = (s.ny, s.nu)
-
-function getindex(s::DMimo, idx::Int)
-  row, col = divrem(idx-1, s.ny)
-  DMimo(fill(s.m[row+1, col+1],1,1), samplingtime(s))
+function samplingtime{T1}(s::DMimo{T1})
+  if length(s) > 0
+    samplingtime(s.m[1])
+  else
+    e = samplingtime(zero(eltype(T1)))
+  end
 end
-
-function getindex(s::DMimo, rows, cols)
-  s2 = try
-      [s.m[row, col] for row in rows, col in cols]
-    catch exception
-      warn("s[,j]: Index out of bounds")
-      throw(exception)
-    end
-  DMimo(s2, samplingtime(s))
-end
-
-getindex(s::DMimo, ::Colon, ::Colon) = DMimo(s.m, samplingtime(s)) # returns a copy of s
-
-function getindex(s::DMimo, ::Colon, cols)
-  s2 = try
-      [s.m[row, col] for row in 1:s.ny, col in cols]
-    catch exception
-      warn("s[,j]: Index out of bounds")
-      throw(exception)
-    end
-  DMimo(s2, samplingtime(s))
-end
-
-function getindex(s::DMimo, rows, ::Colon)
-  s2 = try
-      [s.m[row, col] for row in rows, col in 1:s.nu]
-    catch exception
-      warn("s[,j]: Index out of bounds")
-      throw(exception)
-    end
-  DMimo(s2, samplingtime(s))
-end
-
-start(s::DMimo)       = 1
-next(s::DMimo, state::Int) = (s.m[state], state+1)
-done(s::DMimo, state::Int) = state > length(s)
-eltype{T1}(s::DMimo{T1}) = T1
-length(s::DMimo) = length(s.m)
-eachindex(s::DMimo) = 1:length(s)
-endof(s::DMimo) = length(s)
-
-showcompact(io::IO, s::DMimo) = print(io, summary(s))
 
 function show(io::IO, s::DMimo)
   println(io, "Discrete time transfer function model")
   println(io, "\ty = Gu")
   if samplingtime(s) > 0
     println(io, "with nu=", s.nu, ", ny=", s.ny, ", Ts=", samplingtime(s),".")
-  elseif samplingtime(s) == 0
-    println(io, "with nu=", s.nu, ", ny=", s.ny, ", Ts=unspecified", samplingtime(s),".")
+  else
+    println(io, "with nu=", s.nu, ", ny=", s.ny, ", Ts=0.")
   end
 end
 
@@ -254,16 +210,10 @@ function showall{T1}(io::IO, s::DMimo{T1})
   show(io, s)
   println(io, "")
   for subs in s
+    println(io, subs)
     printtransferfunction(io::IO, subs)
     println(io, "")
   end
-end
-
-function summary{T1<:Real}(s::DMimo{DSisoRational{T1}})
-  string("tf(nu=", s.nu, ", ny=", s.ny, ", Ts=", samplingtime(s), ")")
-end
-function summary{T1<:AbstractFloat}(s::DMimo{DSisoZpk{T1}})
-  string("zpk(nu=", s.nu, ", ny=", s.ny, ", Ts=", samplingtime(s), ")")
 end
 
 function +{T1, T2}(

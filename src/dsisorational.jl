@@ -2,8 +2,8 @@ immutable DSisoRational{T<:AbstractFloat} <: DSisoTf{T}
   num::Poly{T}
   den::Poly{T}
   Ts::T
-  function call{T}(::Type{DSisoRational}, num::Vector{T}, den::Vector{T}, Ts::Float64)
-    Ts_ = max(Ts, zero(Float64))
+  function call{T}(::Type{DSisoRational}, num::Vector{T}, den::Vector{T}, Ts::T)
+    Ts_ = max(Ts, zero(T))
     pnum = Poly(num,"z^-1")
     pden = Poly(den,"z^-1")
     new{T}(pnum, pden, Ts_)
@@ -23,8 +23,11 @@ function tf{T1<:Real}(gain::T1, Ts::T1)
 end
 
 function tf{T1<:Real, T2<:Real, T3<:Real}(num::Vector{T1}, den::Vector{T2}, Ts::T3)
-  num_, den_ = promote(num, den, Ts, Float16)
-  DSisoRational(num_[end:-1:1], den_[end:-1:1], Ts)
+  T = promote_type(T1, T2, T3, Float16)
+  num_ = convert(Vector{T}, num)
+  den_ = convert(Vector{T}, den)
+  Ts_ = convert(T, Ts)
+  DSisoRational(num_[end:-1:1], den_[end:-1:1], Ts_)
 end
 
 function tf{T1<:Real, T2<:Real, T3<:Real}(num::Poly{T1}, den::Poly{T2}, Ts::T3)
@@ -78,45 +81,6 @@ function samplingtime{T1}(s::DSisoRational{T1})
   return copy(s.ts)
 end
 
-ndims(s::DSisoRational)  = 1
-size(s::DSisoRational)   = 1
-
-function getindex(s::DSisoRational, idx::Int)
-  if idx != 1
-    warn("A SISO transfer function only has one element")
-    throw(DomainError())
-  end
-  s
-end
-
-function getindex(s::DSisoRational, rows, cols)
-  if rows != 1 || cols != 1
-    warn("A SISO transfer function only has one element")
-    throw(DomainError())
-  end
-  s
-end
-
-getindex(s::DSisoRational, ::Colon, ::Colon) = s
-
-function getindex(s::DSisoRational, ::Colon, cols)
-  if cols != 1
-    warn("A SISO transfer function only has one element")
-    throw(DomainError())
-  end
-  s
-end
-
-function getindex(s::DSisoRational, rows, ::Colon)
-  if rows != 1
-    warn("A SISO transfer function only has one element")
-    throw(DomainError())
-  end
-  s
-end
-
-showcompact(io::IO, s::DSisoRational) = print(io, summary(s))
-
 function show(io::IO, s::DSisoRational)
   println(io, "Discrete time rational transfer function model")
   println(io, "\ty = Gu")
@@ -133,40 +97,10 @@ function showall(io::IO, s::DSisoRational)
   printtransferfunction(io::IO, s)
 end
 
-Base.print(io::IO, s::DSisoRational) = show(io, s)
-
-function printtransferfunction(io::IO, s::DSisoRational)
-  numstr = print_poly_reverse(s.num)
-  denstr = print_poly_reverse(s.den)
-
-  # Figure out the length of the separating line
-  len_num = length(numstr)
-  len_den = length(denstr)
-  dashcount = max(len_num, len_den)
-
-  # Center the numerator or denominator
-  if len_num < dashcount
-    numstr = "$(repeat(" ", div(dashcount - len_num, 2)))$numstr"
-  else
-    denstr = "$(repeat(" ", div(dashcount - len_den, 2)))$denstr"
-  end
-  println(io, numstr)
-  println(io, repeat("-", dashcount))
-  println(io, denstr)
-end
-
-function summary(io::IO, s::DSisoRational)
-  if s.Ts > 0
-    println(io, string("tf(nu=1, ny=1, Ts=", s.Ts, ")."))
-  elseif s.Ts == 0
-    println(io, string("tf(nu=1, ny=1, Ts=unspecified)."))
-  end
-end
-
 function +{T1, T2}(
     s1::DSisoRational{T1},
     s2::DSisoRational{T2})
-  if s1.Ts == s2.Ts
+  if s1.Ts == s2.Ts || s1.Ts == zero(T1) || s2.Ts == zero(T2)
     Ts, Ts2 = promote(s1.Ts, s2.Ts)
     return tf(s1.num*s2.den + s2.num*s1.den, s1.den*s2.den, Ts)
   else
@@ -199,7 +133,7 @@ end
 function *{T1, T2}(
     s1::DSisoRational{T1},
     s2::DSisoRational{T2})
-  if s1.Ts == s2.Ts
+  if s1.Ts == s2.Ts || s1.Ts == zero(T1) || s2.Ts == zero(T2)
     Ts, Ts2 = promote(s1.Ts, s2.Ts)
     tf(s1.num*s2.num, s1.den*s2.den, Ts)
   else
