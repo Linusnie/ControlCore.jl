@@ -1,8 +1,11 @@
-immutable DMimo{T<:DSiso} <: MimoSystem
+# Defined collection of similar siso systems
+DSiso = Union{DSisoTf}
+
+immutable DMimo{T<:DSiso} <: MimoSystem{T}
   m::Matrix{T}
   ny::Int
   nu::Int
-  function call{T}(::Type{DMimoTf}, m::Matrix{T})
+  function call{T}(::Type{DMimo}, m::Matrix{T})
     return new{T}(m, size(m,1), size(m,2))
   end
 end
@@ -17,7 +20,7 @@ function tf{T1<:AbstractFloat}(num::Matrix{Vector{T1}}, den::Matrix{Vector{T1}},
   for idx in eachindex(m)
     m[idx] = tf(num_[idx], den_[idx], Ts)
   end
-  DMimoTf(m)
+  DMimo(m)
 end
 
 function tf{T1<:AbstractFloat}(gain::Matrix{T1}, Ts::T1)
@@ -26,7 +29,7 @@ function tf{T1<:AbstractFloat}(gain::Matrix{T1}, Ts::T1)
   for idx in eachindex(m)
     m[idx] = tf(gain[idx], Ts)
   end
-  DMimoTf(m)
+  DMimo(m)
 end
 
 function zpk{T1<:AbstractFloat}(z::Matrix{Vector{Complex{T1}}}, p::Matrix{Vector{Complex{T1}}}, k::Matrix{T1}, Ts::T1)
@@ -40,7 +43,7 @@ function zpk{T1<:AbstractFloat}(z::Matrix{Vector{Complex{T1}}}, p::Matrix{Vector
   for idx in eachindex(m)
     m[idx] = zpk(z_[idx], p_[idx], k[idx], Ts)
   end
-  DMimoTf(m)
+  DMimo(m)
 end
 
 function zpk{T1<:AbstractFloat}(gain::Matrix{T1}, Ts::T1)
@@ -49,7 +52,7 @@ function zpk{T1<:AbstractFloat}(gain::Matrix{T1}, Ts::T1)
   for idx in eachindex(m)
     m[idx] = zpk(gain[idx], Ts)
   end
-  DMimoTf(m, Ts)
+  DMimo(m, Ts)
 end
 
 function tf{T1<:Real, T2<:Real, T3<:Real}(num::Matrix{Vector{T1}},
@@ -67,7 +70,7 @@ function tf{T1<:Real, T2<:Real, T3<:Real}(num::Matrix{Vector{T1}},
   for idx in eachindex(m)
     m[idx] = tf(num_[idx], den_[idx], Ts_)
   end
-  DMimoTf(m)
+  DMimo(m)
 end
 
 function tf{T1<:Real, T2<:Real}(gain::Matrix{T1}, Ts::T2)
@@ -79,7 +82,7 @@ function tf{T1<:Real, T2<:Real}(gain::Matrix{T1}, Ts::T2)
   for idx in eachindex(m)
     m[idx] = tf(gain_[idx], Ts_)
   end
-  DMimoTf(m)
+  DMimo(m)
 end
 
 function zpk{T1<:Number, T2<:Number, T3<:Real, T4<:Real}(z::Matrix{Vector{T1}},
@@ -98,7 +101,7 @@ function zpk{T1<:Number, T2<:Number, T3<:Real, T4<:Real}(z::Matrix{Vector{T1}},
   for idx in eachindex(m)
     m[idx] = zpk(z_[idx], p_[idx], k_[idx], Ts_)
   end
-  DMimoTf(m)
+  DMimo(m)
 end
 
 function zpk{T1<:Real, T2<:Real}(gain::Matrix{T1}, Ts::T2)
@@ -110,7 +113,7 @@ function zpk{T1<:Real, T2<:Real}(gain::Matrix{T1}, Ts::T2)
   for idx in eachindex(m)
     m[idx] = zpk(gain_[idx], Ts_)
   end
-  DMimoTf(m)
+  DMimo(m)
 end
 
 function tf{T1<:DSiso}(m::Matrix{T1})
@@ -121,22 +124,15 @@ function tf{T1<:DSiso}(m::Matrix{T1})
       throw(DomainError())
     end
   end
-  DMimoTf(m)
+  DMimo(m)
 end
 
-one{T1<:DSiso}(s::DMimoTf{T1}) =
-  length(s) > 0 ? DMimoTf(ones(T1,1,1), samplingtime(s)) :
-                  DMimoTf(ones(T1,1,1), samplingtime(s))
+one{T1<:DSiso}(s::DMimo{T1})      = DMimo(fill(one(s), 1, 1))
+one{T1<:DSiso}(::Type{DMimo{T1}}) = DMimo(fill(one(T1), 1, 1))
+zero{T1<:DSiso}(s::DMimo{T1})     = DMimo(fill(zero(s),1,1))
+zero{T1}(::Type{DMimo{T1}})       = DMimo(fill(zero(T1), 1, 1))
 
-function one{T1}(::Type{DMimoTf{DSiso{T1}}})
-  DMimoTf(ones(DSiso{T1}, 1, 1), zero(T1))
-end
-zero{T1<:DSiso}(s::DMimoTf{T1}) =
-  length(s) > 0 ? DMimoTf(zeros(T1,1,1), samplingtime(s)) :
-                  DMimoTf(zeros(T1,1,1), samplingtime(s))
-zero{T1}(::Type{DMimoTf{DSiso{T1}}}) = DMimoTf(zeros(DSiso{T1}, 1, 1), zero(T1))
-
-function zeros{T1}(s::DMimoTf{T1})
+function zeros{T1}(s::DMimo{T1})
   z = Matrix{Vector}(s.ny, s.nu)
   for idx in eachindex(z)
     z[idx] = poles(t[idx])
@@ -144,7 +140,7 @@ function zeros{T1}(s::DMimoTf{T1})
   return z
 end
 
-function poles{T1}(s::DMimoTf{T1})
+function poles{T1}(s::DMimo{T1})
   p = Matrix{Vector}(s.ny, s.nu)
   for idx in eachindex(p)
     p[idx] = poles(s.m[idx])
@@ -152,7 +148,7 @@ function poles{T1}(s::DMimoTf{T1})
   return p
 end
 
-function numvec{T1}(s::DMimoTf{T1})
+function numvec{T1}(s::DMimo{T1})
   num = Matrix{Vector}(s.ny, s.nu)
   for idx in eachindex(s)
     num[idx] = numvec(s.m[idx])
@@ -160,7 +156,7 @@ function numvec{T1}(s::DMimoTf{T1})
   return num
 end
 
-function denvec{T1}(s::DMimoTf{T1})
+function denvec{T1}(s::DMimo{T1})
   den = Matrix{Vector}(s.ny, s.nu)
   for idx in eachindex(s)
     den[idx] = denvec(s.m[idx])
@@ -168,7 +164,7 @@ function denvec{T1}(s::DMimoTf{T1})
   return den
 end
 
-function numpoly{T1}(s::DMimoTf{T1})
+function numpoly{T1}(s::DMimo{T1})
   num = Matrix{Vector}(s.ny, s.nu)
   for idx in eachindex(s)
     num[idx] = numpoly(s.m[idx])
@@ -176,7 +172,7 @@ function numpoly{T1}(s::DMimoTf{T1})
   return num
 end
 
-function denpoly{T1}(s::DMimoTf{T1})
+function denpoly{T1}(s::DMimo{T1})
   den = Matrix{Vector}(s.ny, s.nu)
   for idx in eachindex(s)
     den[idx] = denpoly(s.m[idx])
@@ -184,7 +180,7 @@ function denpoly{T1}(s::DMimoTf{T1})
   return den
 end
 
-function zpkdata{T1}(s::DMimoTf{T1})
+function zpkdata{T1}(s::DMimo{T1})
   zpkdata_ = Matrix{Vector}(s.ny, s.nu)
   for idx in eachindex(s)
     zpkdata_[idx] = zpkdata(s.m[idx])
@@ -192,59 +188,59 @@ function zpkdata{T1}(s::DMimoTf{T1})
   return zpkdata_
 end
 
-samplingtime{T1}(s::DMimoTf{T1}) = samplingtime(s)
+samplingtime{T1}(s::DMimo{T1}) = samplingtime(s)
 
-ndims(s::DMimoTf)  = 2
-size(s::DMimoTf)   = (s.ny, s.nu)
+ndims(s::DMimo)  = 2
+size(s::DMimo)   = (s.ny, s.nu)
 
-function getindex(s::DMimoTf, idx::Int)
+function getindex(s::DMimo, idx::Int)
   row, col = divrem(idx-1, s.ny)
-  DMimoTf(fill(s.m[row+1, col+1],1,1), samplingtime(s))
+  DMimo(fill(s.m[row+1, col+1],1,1), samplingtime(s))
 end
 
-function getindex(s::DMimoTf, rows, cols)
+function getindex(s::DMimo, rows, cols)
   s2 = try
       [s.m[row, col] for row in rows, col in cols]
     catch exception
       warn("s[,j]: Index out of bounds")
       throw(exception)
     end
-  DMimoTf(s2, samplingtime(s))
+  DMimo(s2, samplingtime(s))
 end
 
-getindex(s::DMimoTf, ::Colon, ::Colon) = DMimoTf(s.m, samplingtime(s)) # returns a copy of s
+getindex(s::DMimo, ::Colon, ::Colon) = DMimo(s.m, samplingtime(s)) # returns a copy of s
 
-function getindex(s::DMimoTf, ::Colon, cols)
+function getindex(s::DMimo, ::Colon, cols)
   s2 = try
       [s.m[row, col] for row in 1:s.ny, col in cols]
     catch exception
       warn("s[,j]: Index out of bounds")
       throw(exception)
     end
-  DMimoTf(s2, samplingtime(s))
+  DMimo(s2, samplingtime(s))
 end
 
-function getindex(s::DMimoTf, rows, ::Colon)
+function getindex(s::DMimo, rows, ::Colon)
   s2 = try
       [s.m[row, col] for row in rows, col in 1:s.nu]
     catch exception
       warn("s[,j]: Index out of bounds")
       throw(exception)
     end
-  DMimoTf(s2, samplingtime(s))
+  DMimo(s2, samplingtime(s))
 end
 
-start(s::DMimoTf)       = 1
-next(s::DMimoTf, state) = (s.m[state], state+1)
-done(s::DMimoTf, state) = state > length(s)
-eltype{T1}(s::DMimoTf{T1}) = T1
-length(s::DMimoTf) = length(s.m)
-eachindex(s::DMimoTf) = 1:length(s)
-endof(s::DMimoTf) = length(s)
+start(s::DMimo)       = 1
+next(s::DMimo, state::Int) = (s.m[state], state+1)
+done(s::DMimo, state::Int) = state > length(s)
+eltype{T1}(s::DMimo{T1}) = T1
+length(s::DMimo) = length(s.m)
+eachindex(s::DMimo) = 1:length(s)
+endof(s::DMimo) = length(s)
 
-showcompact(io::IO, s::DMimoTf) = print(io, summary(s))
+showcompact(io::IO, s::DMimo) = print(io, summary(s))
 
-function show(io::IO, s::DMimoTf)
+function show(io::IO, s::DMimo)
   println(io, "Discrete time transfer function model")
   println(io, "\ty = Gu")
   if samplingtime(s) > 0
@@ -254,7 +250,7 @@ function show(io::IO, s::DMimoTf)
   end
 end
 
-function showall{T1}(io::IO, s::DMimoTf{T1})
+function showall{T1}(io::IO, s::DMimo{T1})
   show(io, s)
   println(io, "")
   for subs in s
@@ -263,15 +259,15 @@ function showall{T1}(io::IO, s::DMimoTf{T1})
   end
 end
 
-function summary{T1<:Real}(s::DMimoTf{DSisoRational{T1}})
+function summary{T1<:Real}(s::DMimo{DSisoRational{T1}})
   string("tf(nu=", s.nu, ", ny=", s.ny, ", Ts=", samplingtime(s), ")")
 end
-function summary{T1<:Number, T2<:Real}(s::DMimoTf{DSisoZpk{T1, T2}})
+function summary{T1<:AbstractFloat}(s::DMimo{DSisoZpk{T1}})
   string("zpk(nu=", s.nu, ", ny=", s.ny, ", Ts=", samplingtime(s), ")")
 end
 
 function +{T1, T2}(
-    s1::DMimoTf{T1}, s2::DMimoTf{T2})
+    s1::DMimo{T1}, s2::DMimo{T2})
   if size(s1.m) != size(s2.m)
     warn("Systems have different shapes")
     throw(DomainError)
@@ -283,43 +279,43 @@ function +{T1, T2}(
   return tf(m)
 end
 
-+{T1, T2<:Real}(s::DMimoTf{T1}, n::T2) =
-  DMimoTf(s.m+n, samplingtime(s))
-+{T1, T2<:Real}(n::T2, s::DMimoTf{T1})  = +(s, n)
++{T1, T2<:Real}(s::DMimo{T1}, n::T2) =
+  DMimo(s.m+n, samplingtime(s))
++{T1, T2<:Real}(n::T2, s::DMimo{T1})  = +(s, n)
 
-function +{T1, T2<:Real}(s::DMimoTf{T1}, n::Matrix{T2})
+function +{T1, T2<:Real}(s::DMimo{T1}, n::Matrix{T2})
   if size(s.m) != size(n)
     warn("Systems have different shapes")
     throw(DomainError)
   end
-  DMimoTf(s.m + n, samplingtime(s))
+  DMimo(s.m + n, samplingtime(s))
 end
-+{T1, T2<:Real}(n::Matrix{T2}, s::DMimoTf{T1})  = (s, n)
++{T1, T2<:Real}(n::Matrix{T2}, s::DMimo{T1})  = (s, n)
 
-.+{T1, T2<:Real}(n::T2, s::DMimoTf{T1})         = +(n, s)
-.+{T1, T2<:Real}(s::DMimoTf{T1}, n::T2)         = +(s, n)
+.+{T1, T2<:Real}(n::T2, s::DMimo{T1})         = +(n, s)
+.+{T1, T2<:Real}(s::DMimo{T1}, n::T2)         = +(s, n)
 
-.+{T1, T2<:Real}(n::Matrix{T2}, s::DMimoTf{T1}) = +(n, s)
-.+{T1, T2<:Real}(s::DMimoTf{T1}, n::Matrix{T2}) = +(s, n)
+.+{T1, T2<:Real}(n::Matrix{T2}, s::DMimo{T1}) = +(n, s)
+.+{T1, T2<:Real}(s::DMimo{T1}, n::Matrix{T2}) = +(s, n)
 .+{T1, T2}(
-      s1::DMimoTf{T1}, s2::DMimoTf{T2})                    = +(s1, s2)
+      s1::DMimo{T1}, s2::DMimo{T2})                    = +(s1, s2)
 
--{T1}(s::DMimoTf{T1})                   = tf(-s.m)
+-{T1}(s::DMimo{T1})                   = tf(-s.m)
 
--{T1, T2<:Real}(s::DMimoTf{T1}, n::Matrix{T2}) = +(s, -n)
--{T1, T2<:Real}(n::Matrix{T2}, s::DMimoTf{T1}) = +(-n, s)
--{T1, T2}(s1::DMimoTf{T1},s2::DMimoTf{T2}) = +(s1,-s2)
--{T1, T2<:Real}(s::DMimoTf{T1}, n::T2)  = +(s,-n)
--{T1, T2<:Real}(n::T2, s::DMimoTf{T1})  = +(-n, s)
+-{T1, T2<:Real}(s::DMimo{T1}, n::Matrix{T2}) = +(s, -n)
+-{T1, T2<:Real}(n::Matrix{T2}, s::DMimo{T1}) = +(-n, s)
+-{T1, T2}(s1::DMimo{T1},s2::DMimo{T2}) = +(s1,-s2)
+-{T1, T2<:Real}(s::DMimo{T1}, n::T2)  = +(s,-n)
+-{T1, T2<:Real}(n::T2, s::DMimo{T1})  = +(-n, s)
 
-.-{T1, T2<:Real}(n::T2, s::DMimoTf{T1}) = +(-n, s)
-.-{T1, T2<:Real}(s::DMimoTf{T1}, n::T2) = +(s,-n)
+.-{T1, T2<:Real}(n::T2, s::DMimo{T1}) = +(-n, s)
+.-{T1, T2<:Real}(s::DMimo{T1}, n::T2) = +(s,-n)
 
-.-{T1, T2<:Real}(n::Matrix{T2}, s::DMimoTf{T1}) = -(n, s)
-.-{T1, T2<:Real}(s::DMimoTf{T1}, n::Matrix{T2}) = -(s, n)
+.-{T1, T2<:Real}(n::Matrix{T2}, s::DMimo{T1}) = -(n, s)
+.-{T1, T2<:Real}(s::DMimo{T1}, n::Matrix{T2}) = -(s, n)
 
 function *{T1, T2}(
-  s1::DMimoTf{T1}, s2::DMimoTf{T2})
+  s1::DMimo{T1}, s2::DMimo{T2})
   if size(s1.m, 2) != size(s2.m, 1)
     warn("s1*s2: s1 must have same number of inputs as s2 has outputs")
     throw(DomainError())
@@ -331,51 +327,51 @@ function *{T1, T2}(
 end
 
 function *{T1, T2<:Real}(
-  s::DMimoTf{T1}, n::T2)
+  s::DMimo{T1}, n::T2)
   tf(s.m*n)
 end
-*{T1, T2<:Real}(n::T2, s::DMimoTf{T1})  = *(s, n)
+*{T1, T2<:Real}(n::T2, s::DMimo{T1})  = *(s, n)
 
-*{T1, T2<:Real}(s::DMimoTf{T1}, n::Matrix{T2}) =
-      DMimoTf(s.m*n, samplingtime(s))
-*{T1, T2<:Real}(n::Matrix{T2}, s::DMimoTf{T1}) =
-      DMimoTf(n*s.m, samplingtime(s))
+*{T1, T2<:Real}(s::DMimo{T1}, n::Matrix{T2}) =
+      DMimo(s.m*n, samplingtime(s))
+*{T1, T2<:Real}(n::Matrix{T2}, s::DMimo{T1}) =
+      DMimo(n*s.m, samplingtime(s))
 
-.*{T1, T2<:Real}(n::T2, s::DMimoTf{T1}) = *(n, s)
-.*{T1, T2<:Real}(s::DMimoTf{T1}, n::T2) = *(s, n)
-.*{T1, T2<:Real}(n::Matrix{T2}, s::DMimoTf{T1}) = *(n, s)
-.*{T1, T2<:Real}(s::DMimoTf{T1}, n::Matrix{T2}) = *(s, n)
+.*{T1, T2<:Real}(n::T2, s::DMimo{T1}) = *(n, s)
+.*{T1, T2<:Real}(s::DMimo{T1}, n::T2) = *(s, n)
+.*{T1, T2<:Real}(n::Matrix{T2}, s::DMimo{T1}) = *(n, s)
+.*{T1, T2<:Real}(s::DMimo{T1}, n::Matrix{T2}) = *(s, n)
 .*{T1, T2}(
-  s1::DMimoTf{T1}, s2::DMimoTf{T2}) = *(s1,s2)
+  s1::DMimo{T1}, s2::DMimo{T2}) = *(s1,s2)
 
-function /{T1, T2<:Real}(n::T2, s::DMimoTf{T1})
+function /{T1, T2<:Real}(n::T2, s::DMimo{T1})
   warn("MIMO TransferFunction inversion isn't implemented yet")
   throw(DomainError())
 end
 /{T1, T2}(
-  s1::DMimoTf{T1}, s2::DMimoTf{T2}) = s1*(1/s2)
-/{T1, T2<:Real}(s::DMimoTf{T1}, n::T2) = s*(1/n)
-function /{T1, T2<:Real}(n::Matrix{T2}, t::DMimoTf{T1})
+  s1::DMimo{T1}, s2::DMimo{T2}) = s1*(1/s2)
+/{T1, T2<:Real}(s::DMimo{T1}, n::T2) = s*(1/n)
+function /{T1, T2<:Real}(n::Matrix{T2}, t::DMimo{T1})
   warn("MIMO TransferFunction inversion isn't implemented yet")
   throw(DomainError())
 end
-/{T1, T2<:Real}(s::DMimoTf{T1}, n::Matrix{T2}) =
+/{T1, T2<:Real}(s::DMimo{T1}, n::Matrix{T2}) =
   tf(s.m/n)
 
-./{T1, T2<:Real}(s::DMimoTf{T1}, n::T2) = s/n
-./{T1, T2<:Real}(n::T2, s::DMimoTf{T1}) = n/s
-./{T1, T2<:Real}(s::DMimoTf{T1}, n::Matrix{T2}) = s/n
-./{T1, T2<:Real}(n::Matrix{T2}, s::DMimoTf{T1}) = n/s
+./{T1, T2<:Real}(s::DMimo{T1}, n::T2) = s/n
+./{T1, T2<:Real}(n::T2, s::DMimo{T1}) = n/s
+./{T1, T2<:Real}(s::DMimo{T1}, n::Matrix{T2}) = s/n
+./{T1, T2<:Real}(n::Matrix{T2}, s::DMimo{T1}) = n/s
 
 function =={T1, T2}(
-  s1::DMimoTf{T1}, s2::DMimoTf{T2})
+  s1::DMimo{T1}, s2::DMimo{T2})
   s1.m != s2.m
 end
 
 !={T1, T2}(
-  s1::DMimoTf{T1}, s2::DMimoTf{T2}) = !(s1.m == s2.m)
+  s1::DMimo{T1}, s2::DMimo{T2}) = !(s1.m == s2.m)
 
 function isapprox{T1, T2}(
-  s1::DMimoTf{T1}, s2::DMimoTf{T2})
+  s1::DMimo{T1}, s2::DMimo{T2})
   # TODO: Implement
 end

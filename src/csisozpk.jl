@@ -1,4 +1,4 @@
-immutable CSisoZpk{T} <: CSisoTf{T}
+immutable CSisoZpk{T<:AbstractFloat} <: CSisoTf{T}
   z::Vector{Complex{T}}
   p::Vector{Complex{T}}
   k::T
@@ -57,20 +57,20 @@ function zpk{T1<:AbstractFloat}(z::Vector{Complex{T1}},  p::Vector{Complex{T1}},
   CSisoZpk(z, p, k)
 end
 
-function zpk{T1<:Number, T2<:Number, T2<:Real}(z::Vector{T1}, p::Vector{T2}, k::T2)
-  T   = promote_type(T1, T2, T2, Float16) # ensure AbstractFloat
+function zpk{T1<:Number, T2<:Number, T3<:Real}(z::Vector{T1}, p::Vector{T2}, k::T3)
+  T   = promote_type(real(T1), real(T2), T3, Float16) # ensure AbstractFloat
   z_  = convert(Vector{Complex{T}},z)
   p_  = convert(Vector{Complex{T}},p)
   k_  = convert(T,k)
-  CSisoZpk(z_, p_, k)
+  CSisoZpk(z_, p_, k_)
 end
 
 function zpk{T1<:Real}(k::T1)
   zpk(Vector{T1}(), Vector{T1}(), k)
 end
 
-Base.promote_rule{T1<:AbstractFloat}(::CSisoZpk{T1}, ::CSisoZpk{T2}) = CSisoZpk{promote_type(T1, T2), promote_type(T1, T2)}
-Base.convert{T1<:AbstractFloat,}(::Type{CSisoZpk{T1}}, s::CSisoZpk{T2}) = zpk(convert(Poly{T1}, s.z), convert(Poly{T1}, s.p),  convert(T1, s.k))
+Base.promote_rule{T1<:AbstractFloat, T2<:AbstractFloat}(::CSisoZpk{T1}, ::CSisoZpk{T2}) = CSisoZpk{promote_type(T1, T2), promote_type(T1, T2)}
+Base.convert{T1<:AbstractFloat, T2<:AbstractFloat}(::Type{CSisoZpk{T1}}, s::CSisoZpk{T2}) = zpk(convert(Poly{T1}, s.z), convert(Poly{T1}, s.p),  convert(T1, s.k))
 
 Base.promote_rule{T1<:AbstractFloat, T2<:Real}(::CSisoZpk{T1}, ::T2) = CSisoZpk{promote_type(T1, T2), promote_type(T1, T2), promote_type(T1, T2)}
 Base.convert{T1<:AbstractFloat, T2<:Real}(::Type{CSisoZpk{T1}}, x::T2) = zpk([one(T1)], [one(T1)], convert(T1, x))
@@ -149,16 +149,6 @@ function getindex(s::CSisoZpk, rows, ::Colon)
   s
 end
 
-start(s::CSisoZpk)           = 1
-next(s::CSisoZpk, state)     = (s.m[state], state+1)
-done(s::CSisoZpk, state)     = state > length(s)
-eltype(::Type{CSisoZpk{T1}}) = CSisoZpk{T1}
-length(s::CSisoZpk)          = 1
-eachindex(s::CSisoZpk)       = 1:length(s)
-endof(s::CSisoZpk)           = length(s)
-
-showcompact(io::IO, s::CSisoZpk) = print(io, summary(s))
-
 function show(io::IO, s::CSisoZpk)
   println(io, "Discrete time zpk transfer function model")
   println(io, "\ty = Gu")
@@ -174,8 +164,6 @@ function showall(io::IO, s::CSisoZpk)
   println(io, "")
   printtransferfunction(io::IO, s)
 end
-
-Base.print(io::IO, s::CSisoZpk) = show(io, t)
 
 function printtransferfunction(io::IO, s::CSisoZpk)
   numstr = sprint(print_polyroots, s.z, "z")
@@ -197,10 +185,6 @@ function printtransferfunction(io::IO, s::CSisoZpk)
   println(io, repeat(" ", len_gain+1), numstr)
   println(io, gainstr, " ", repeat("-", dashcount))
   println(io, repeat(" ", len_gain+1), denstr)
-end
-
-function summary(io::IO, s::CSisoZpk)
-  println(io, string("zpk(nu=1, ny=1)."))
 end
 
 function +{T1<:AbstractFloat, T2<:AbstractFloat}(
@@ -230,7 +214,7 @@ end
 
 .+{T1<:AbstractFloat, T2<:Real}(s::CSisoZpk{T1}, n::T2) = +(s, zpk(n))
 .+{T1<:AbstractFloat, T2<:Real}(n::T2, s::CSisoZpk{T1}) = +(s, n)
-.+{T1<:AbstractFloat}(s1::CSisoZpk{T1}, s2::CSisoZpk{T2}) = +(s1, s2)
+.+{T1<:AbstractFloat, T2<:AbstractFloat}(s1::CSisoZpk{T1}, s2::CSisoZpk{T2}) = +(s1, s2)
 
 -{T1<:AbstractFloat}(s::CSisoZpk{T1}) = zpk(s.z, s.p, -s.k)
 function -{T1<:AbstractFloat, T2<:AbstractFloat}(
@@ -242,7 +226,7 @@ end
 
 .-{T1<:AbstractFloat, T2<:Real}(s::CSisoZpk{T1}, n::T2) = +(s, -n)
 .-{T1<:AbstractFloat, T2<:Real}(n::T2, s::CSisoZpk{T1}) = +(n, -t)
-.-{T1<:AbstractFloat}(s1::CSisoZpk{T1}, s2::CSisoZpk{T2}) = +(s1, -s2)
+.-{T1<:AbstractFloat, T2<:AbstractFloat}(s1::CSisoZpk{T1}, s2::CSisoZpk{T2}) = +(s1, -s2)
 
 function *{T1<:AbstractFloat, T2<:AbstractFloat}(
   s1::CSisoZpk{T1}, s2::CSisoZpk{T2})

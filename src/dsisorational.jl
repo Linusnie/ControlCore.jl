@@ -1,8 +1,8 @@
-immutable DSisoRational{T} <: DSisoTf{T}
+immutable DSisoRational{T<:AbstractFloat} <: DSisoTf{T}
   num::Poly{T}
   den::Poly{T}
   Ts::T
-  function call{T}(::Type{DSisoRational}, num::Vector{T1}, den::Vector{T1}, Ts::Float64)
+  function call{T}(::Type{DSisoRational}, num::Vector{T}, den::Vector{T}, Ts::Float64)
     Ts_ = max(Ts, zero(Float64))
     pnum = Poly(num,"z^-1")
     pden = Poly(den,"z^-1")
@@ -114,14 +114,6 @@ function getindex(s::DSisoRational, rows, ::Colon)
   end
   s
 end
-
-start(s::DSisoRational)       = 1
-next(s::DSisoRational, state) = (s.m[state], state+1)
-done(s::DSisoRational, state) = state > length(s)
-eltype{T1}(::Type{DSisoRational{T1}}) = DSisoRational{T1}
-length(s::DSisoRational) = 1
-eachindex(s::DSisoRational) = 1:length(s)
-endof(s::DSisoRational) = length(s)
 
 showcompact(io::IO, s::DSisoRational) = print(io, summary(s))
 

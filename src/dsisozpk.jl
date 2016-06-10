@@ -1,4 +1,4 @@
-immutable DSisoZpk{T} <: DSisoTf{T}
+immutable DSisoZpk{T<:AbstractFloat} <: DSisoTf{T}
   z::Vector{Complex{T}}
   p::Vector{Complex{T}}
   k::T
@@ -11,21 +11,21 @@ immutable DSisoZpk{T} <: DSisoTf{T}
 end
 
 function zpk{T1<:AbstractFloat}(z::Vector{Complex{T1}},
-  p::Vector{Complex{T1}}, k::T1, Ts::T1))
+  p::Vector{Complex{T1}}, k::T1, Ts::T1)
   DSisoZpk(z, p, k, Ts)
 end
 
-function zpk{T1<:Number, T2<:Number, T2<:Real, T4<:Real}(z::Vector{T1}, p::Vector{T2}, k::T2, Ts::T4)
-  T   = promote_type(T1, T2, T2, T4, Float16) # ensure AbstractFloat
-  z_  = convert(Vector{Complex{T}},z)
-  p_  = convert(Vector{Complex{T}},p)
+function zpk{T1<:Number, T2<:Number, T3<:Real, T4<:Real}(z::Vector{T1}, p::Vector{T2}, k::T3, Ts::T4)
+  T   = promote_type(real(T1), real(T2), T3, T4, Float16) # ensure AbstractFloat
+  z_  = convert(Vector{Complex{T}}, z)
+  p_  = convert(Vector{Complex{T}}, p)
   k_  = convert(T,k)
   Ts_ = convert(T,Ts)
   DSisoZpk(z_, p_, k_, Ts_)
 end
 
 function zpk{T1<:Number, T2<:Real}(k::T1, Ts::T2)
-  zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), k, Float64(Ts))
+  zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), k, Ts)
 end
 
 Base.promote_rule{T1<:AbstractFloat, T2<:AbstractFloat}(::Type{DSisoZpk{T1}}, ::Type{DSisoZpk{T2}}) = DSisoZpk{promote_type(T1, T2), promote_type(T1, T2)}
@@ -35,10 +35,14 @@ Base.convert{T1<:AbstractFloat, T2<:AbstractFloat}(::Type{DSisoZpk{T1}}, s::DSis
 Base.promote_rule{T1<:AbstractFloat, T2<:Real}(::Type{DSisoZpk{T1}}, ::Type{T2}) = DSisoZpk{promote_type(T1, T2), promote_type(T1, T2)}
 Base.convert{T1<:AbstractFloat, T2<:Real}(::Type{DSisoZpk{T1}}, x::T2) = zpk([one(T1)], [one(T1)], convert(T1, x), zero(T1))
 
-Base.one{T1<:AbstractFloat, T2<:AbstractFloat}(::Type{DSisoZpk{T1}}) = zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), one(T1), zero(T1))
-Base.one{T1<:AbstractFloat, T2<:AbstractFloat}(s::DSisoZpk{T1}) = zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), one(T1), s.Ts)
-Base.zero{T1<:AbstractFloat, T2<:AbstractFloat}(::Type{DSisoZpk{T1}}) = zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), zero(T1), zero(T1))
-Base.zero{T1<:AbstractFloat, T2<:AbstractFloat}(s::DSisoZpk{T1}) = zpk(Vector{Complex{T1}}(), Vector{Complex{T1}}(), zero(T1), s.Ts)
+Base.one{T1<:AbstractFloat}(::Type{DSisoZpk{T1}})  = zpk(Vector{Complex{T1}}(),
+  Vector{Complex{T1}}(), one(T1), zero(T1))
+Base.one{T1<:AbstractFloat}(s::DSisoZpk{T1})       = zpk(Vector{Complex{T1}}(),
+  Vector{Complex{T1}}(), one(T1), s.Ts)
+Base.zero{T1<:AbstractFloat}(::Type{DSisoZpk{T1}}) = zpk(Vector{Complex{T1}}(),
+  Vector{Complex{T1}}(), zero(T1), zero(T1))
+Base.zero{T1<:AbstractFloat}(s::DSisoZpk{T1})      = zpk(Vector{Complex{T1}}(),
+  Vector{Complex{T1}}(), zero(T1), s.Ts)
 
 function zeros{T1<:AbstractFloat}(s::DSisoZpk{T1})
   return copy(s.z)
@@ -109,14 +113,6 @@ function getindex(s::DSisoZpk, rows, ::Colon)
   s
 end
 
-start(s::DSisoZpk)           = 1
-next(s::DSisoZpk, state)     = (s.m[state], state+1)
-done(s::DSisoZpk, state)     = state > length(s)
-eltype(::Type{DSisoZpk{T1}}) = DSisoZpk{T1}
-length(s::DSisoZpk)          = 1
-eachindex(s::DSisoZpk)       = 1:length(s)
-endof(s::DSisoZpk)           = length(s)
-
 showcompact(io::IO, s::DSisoZpk) = print(io, summary(s))
 
 function show(io::IO, s::DSisoZpk)
@@ -135,7 +131,7 @@ function showall(io::IO, s::DSisoZpk)
   printtransferfunction(io::IO, s)
 end
 
-Base.print(io::IO, s::DSisoZpk) = show(io, t)
+Base.print(io::IO, s::DSisoZpk) = show(io, s)
 
 function printtransferfunction(io::IO, s::DSisoZpk)
   numstr = sprint(print_polyroots, s.z, "z")
