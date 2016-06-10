@@ -19,6 +19,17 @@ length(s::MimoSystem)               = length(getmatrix(s)::AbstractArray)
 eachindex(s::MimoSystem)            = eachindex(getmatrix(s)::AbstractArray)
 endof(s::MimoSystem)                = endof(getmatrix(s)::AbstractArray)
 
+getindex{T<:SisoSystem}(s::MimoSystem{T}, idx::Int)           =
+  getindex(getmatrix(s)::AbstractArray, idx)
+getindex{T<:SisoSystem}(s::MimoSystem{T}, row::Int, col::Int) =
+  getindex(getmatrix(s)::AbstractArray, rows, cols)
+getindex{T<:SisoSystem}(s::MimoSystem{T}, ::Colon, ::Colon)   = tf(getmatrix(s))
+getindex{T<:SisoSystem}(s::MimoSystem{T}, ::Colon)            = tf(getmatrix(s))
+getindex{T<:SisoSystem}(s::MimoSystem{T}, ::Colon, cols)      =
+  tf(getindex(getmatrix(s)::AbstractArray, :, cols))
+getindex{T<:SisoSystem}(s::MimoSystem{T}, rows, ::Colon)      =
+  tf(getindex(getmatrix(s)::AbstractArray, rows, :))
+
 # Printing functions
 summary(s::MimoSystem) = string("mimo(nx=", numstates(s), ",ny=", numoutputs(s),
   ",nu=", numinputs(s), (isdiscrete(s) ? string(",Ts=", samplingtime(s)) : ""), ")")

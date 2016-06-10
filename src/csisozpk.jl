@@ -69,10 +69,10 @@ function zpk{T1<:Real}(k::T1)
   zpk(Vector{T1}(), Vector{T1}(), k)
 end
 
-Base.promote_rule{T1<:AbstractFloat, T2<:AbstractFloat}(::CSisoZpk{T1}, ::CSisoZpk{T2}) = CSisoZpk{promote_type(T1, T2), promote_type(T1, T2)}
+Base.promote_rule{T1<:AbstractFloat, T2<:AbstractFloat}(::CSisoZpk{T1}, ::CSisoZpk{T2}) = CSisoZpk{promote_type(T1, T2)}
 Base.convert{T1<:AbstractFloat, T2<:AbstractFloat}(::Type{CSisoZpk{T1}}, s::CSisoZpk{T2}) = zpk(convert(Poly{T1}, s.z), convert(Poly{T1}, s.p),  convert(T1, s.k))
 
-Base.promote_rule{T1<:AbstractFloat, T2<:Real}(::CSisoZpk{T1}, ::T2) = CSisoZpk{promote_type(T1, T2), promote_type(T1, T2), promote_type(T1, T2)}
+Base.promote_rule{T1<:AbstractFloat, T2<:Real}(::CSisoZpk{T1}, ::T2) = CSisoZpk{promote_type(T1, T2)}
 Base.convert{T1<:AbstractFloat, T2<:Real}(::Type{CSisoZpk{T1}}, x::T2) = zpk([one(T1)], [one(T1)], convert(T1, x))
 
 Base.one{T1<:AbstractFloat}(::Type{CSisoZpk{T1}}) = zpk(Vector{T1}(), Vector{T1}(), one(T1))
@@ -112,43 +112,6 @@ function samplingtime{T1<:AbstractFloat}(s::CSisoZpk{T1})
   return -one(Float64)
 end
 
-ndims(s::CSisoZpk)  = 1
-size(s::CSisoZpk)   = 1
-
-function getindex(s::CSisoZpk, idx::Int)
-  if idx != 1
-    warn("A SISO transfer function only has one element")
-    throw(DomainError())
-  end
-  s
-end
-
-function getindex(s::CSisoZpk, rows, cols)
-  if rows != 1 || cols != 1
-    warn("A SISO transfer function only has one element")
-    throw(DomainError())
-  end
-  s
-end
-
-getindex{T1<:AbstractFloat}(s::CSisoZpk{T1}, ::Colon, ::Colon) = s
-
-function getindex(s::CSisoZpk, ::Colon, cols)
-  if cols != 1
-    warn("A SISO transfer function only has one element")
-    throw(DomainError())
-  end
-  s
-end
-
-function getindex(s::CSisoZpk, rows, ::Colon)
-  if rows != 1
-    warn("A SISO transfer function only has one element")
-    throw(DomainError())
-  end
-  s
-end
-
 function show(io::IO, s::CSisoZpk)
   println(io, "Discrete time zpk transfer function model")
   println(io, "\ty = Gu")
@@ -163,28 +126,6 @@ function showall(io::IO, s::CSisoZpk)
   show(io, s)
   println(io, "")
   printtransferfunction(io::IO, s)
-end
-
-function printtransferfunction(io::IO, s::CSisoZpk)
-  numstr = sprint(print_polyroots, s.z, "z")
-  denstr = sprint(print_polyroots, s.p, "z")
-  gainstr = s.k[1]==1.0 ? "" : "$(round(s.k[1], 6))"
-
-  # Figure out the length of the separating line
-  len_num = length(numstr)
-  len_den = length(denstr)
-  len_gain = length(gainstr)
-  dashcount = max(len_num, len_den)
-
-  # Center the numerator or denominator
-  if len_num < dashcount
-    numstr = "$(repeat(" ", div(dashcount - len_num, 2)))$numstr"
-  else
-    denstr = "$(repeat(" ", div(dashcount - len_den, 2)))$denstr"
-  end
-  println(io, repeat(" ", len_gain+1), numstr)
-  println(io, gainstr, " ", repeat("-", dashcount))
-  println(io, repeat(" ", len_gain+1), denstr)
 end
 
 function +{T1<:AbstractFloat, T2<:AbstractFloat}(
@@ -206,7 +147,7 @@ function +{T1<:AbstractFloat, T2<:Real}(
   Z = s.k*poly(s.z) + n*poly(s.p)
   z = roots(Z)
   p = s.p
-  k = Z[end] # Poly is now reverse order
+  k = real(Z[end]) # Poly is now reverse order
   return zpk(z_, p_, k)
 end
 #+{T1<:AbstractFloat, T2<:Real}(s::CSisoZpk{T1}, n::T2)  = +(s, zpk(n))

@@ -27,7 +27,7 @@ export
   zpk,
   ss,
   series,
-  parallel,
+  paralell,
   feedback,
   degree,
   poles,
@@ -48,7 +48,6 @@ include("abstract/sisoss.jl")
 include("abstract/dsisoss.jl")
 include("abstract/csisoss.jl")
 include("abstract/mimosystem.jl")
-include("display.jl")
 include("dsisorational.jl")
 include("dsisozpk.jl")
 include("dmimo.jl")
@@ -57,5 +56,7 @@ include("csisozpk.jl")
 include("cmimo.jl")
 #include("continuoussssiso.jl")
 #include("continuousssmimo.jl")
+include("display.jl")
+include("interconnections.jl")
 
 end # module

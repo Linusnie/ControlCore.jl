@@ -1,3 +1,87 @@
+function printtransferfunction{T1}(io::IO, s::DSisoRational{T1})
+  numstr = print_poly_reverse(s.num)
+  denstr = print_poly_reverse(s.den)
+
+  # Figure out the length of the separating line
+  len_num = length(numstr)
+  len_den = length(denstr)
+  dashcount = max(len_num, len_den)
+
+  # Center the numerator or denominator
+  if len_num < dashcount
+    numstr = "$(repeat(" ", div(dashcount - len_num, 2)))$numstr"
+  else
+    denstr = "$(repeat(" ", div(dashcount - len_den, 2)))$denstr"
+  end
+  println(io, numstr)
+  println(io, repeat("-", dashcount))
+  println(io, denstr)
+end
+
+function printtransferfunction(io::IO, s::CSisoRational)
+  numstr = print_poly_reverse(s.num)
+  denstr = print_poly_reverse(s.den)
+
+  # Figure out the length of the separating line
+  len_num = length(numstr)
+  len_den = length(denstr)
+  dashcount = max(len_num, len_den)
+
+  # Center the numerator or denominator
+  if len_num < dashcount
+    numstr = "$(repeat(" ", div(dashcount - len_num, 2)))$numstr"
+  else
+    denstr = "$(repeat(" ", div(dashcount - len_den, 2)))$denstr"
+  end
+  println(io, numstr)
+  println(io, repeat("-", dashcount))
+  println(io, denstr)
+end
+
+function printtransferfunction(io::IO, s::CSisoZpk)
+  numstr = sprint(print_polyroots, s.z, "z")
+  denstr = sprint(print_polyroots, s.p, "z")
+  gainstr = s.k[1]==1.0 ? "" : "$(round(s.k[1], 6))"
+
+  # Figure out the length of the separating line
+  len_num = length(numstr)
+  len_den = length(denstr)
+  len_gain = length(gainstr)
+  dashcount = max(len_num, len_den)
+
+  # Center the numerator or denominator
+  if len_num < dashcount
+    numstr = "$(repeat(" ", div(dashcount - len_num, 2)))$numstr"
+  else
+    denstr = "$(repeat(" ", div(dashcount - len_den, 2)))$denstr"
+  end
+  println(io, repeat(" ", len_gain+1), numstr)
+  println(io, gainstr, " ", repeat("-", dashcount))
+  println(io, repeat(" ", len_gain+1), denstr)
+end
+
+function printtransferfunction{T1<:AbstractFloat}(io::IO, s::DSisoZpk{T1})
+  numstr = sprint(print_polyroots, s.z, "z")
+  denstr = sprint(print_polyroots, s.p, "z")
+  gainstr = s.k[1]==1.0 ? "" : "$(round(s.k[1], 6))"
+
+  # Figure out the length of the separating line
+  len_num = length(numstr)
+  len_den = length(denstr)
+  len_gain = length(gainstr)
+  dashcount = max(len_num, len_den)
+
+  # Center the numerator or denominator
+  if len_num < dashcount
+    numstr = "$(repeat(" ", div(dashcount - len_num, 2)))$numstr"
+  else
+    denstr = "$(repeat(" ", div(dashcount - len_den, 2)))$denstr"
+  end
+  println(io, repeat(" ", len_gain+1), numstr)
+  println(io, gainstr, " ", repeat("-", dashcount))
+  println(io, repeat(" ", len_gain+1), denstr)
+end
+
 function printterm{T}(p::Poly{T},j,first)
     s = ""
     pj = p[j]
