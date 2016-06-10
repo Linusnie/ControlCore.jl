@@ -1,5 +1,8 @@
 using ControlCore
 using Base.Test
 
-# write your own tests here
-@test 1 == 1
+# continuous state space type tests
+include("continuousss.jl")
+include("discretemimo.jl")
+include("discretesisorational.jl")
+include("discretesisozpk.jl")
