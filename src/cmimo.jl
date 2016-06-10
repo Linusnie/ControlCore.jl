@@ -1,3 +1,6 @@
+# Defined collection of similar siso systems
+CSiso = Union{CSisoTf}
+
 immutable CMimo{T<:CSiso} <: MimoSystem
   m::Matrix{T}
   ny::Int
@@ -259,9 +262,9 @@ function getindex(s::CMimo, rows, ::Colon)
 end
 
 start(s::CMimo)       = 1
-next(s::CMimo, state) = (s.m[state], state+1)
-done(s::CMimo, state) = state > length(s)
-eltype{T1}(s::CMimo{T1}) = T1
+next(s::CMimo, state::Int) = (s.m[state], state+1)
+done(s::CMimo, state::Int) = state > length(s)
+eltype{T<:CSiso}(s::CMimo{T}) = T
 length(s::CMimo) = length(s.m)
 eachindex(s::CMimo) = 1:length(s)
 endof(s::CMimo) = length(s)
@@ -286,7 +289,7 @@ end
 function summary{T1<:Real}(s::CMimo{CSisoRational{T1}})
   string("tf(nu=", s.nu, ", ny=", s.ny, ")")
 end
-function summary{T1<:Number, T2<:Real}(s::CMimo{CSisoZpk{T1, T2}})
+function summary{T1<:Number}(s::CMimo{CSisoZpk{T1}})
   string("zpk(nu=", s.nu, ", ny=", s.ny, ")")
 end
 
@@ -304,7 +307,7 @@ function +{T1, T2}(
   return tf(m)
 end
 
-+{T1} (s::CMimo{T1}) = tf(s.m+n)
++{T1, T2<:Real}(s::CMimo{T1}, n::T2) = tf(s.m+n)
 +{T1, T2<:Real}(n::T2, s::CMimo{T1}) = +(s, n)
 
 function +{T1, T2<:Real}(s::CMimo{T1}, n::Matrix{T2})
