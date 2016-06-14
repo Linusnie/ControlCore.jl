@@ -21,8 +21,7 @@ eachindex(s::SisoSystem)                  = 1
 endof(s::SisoSystem)                      = 1
 
 getindex(s::SisoSystem, idx::Int)         = (idx == 1) ? s :
-  throw(BoundsError(s,idx))
-getindex(s::SisoSystem, ::Colon)          = s
+  (warn("s[idx]: Trying to access idx != 1"); throw(BoundsError()))
 
 # Printing functions
 summary(s::SisoSystem) = string("siso(nx=", numstates(s), (isdiscrete(s) ?
