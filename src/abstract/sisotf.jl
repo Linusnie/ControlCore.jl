@@ -1,4 +1,4 @@
-abstract SisoTf{T<:AbstractFloat} <: SisoSystem{T}
+abstract SisoTf{T<:Real} <: SisoSystem{T}
 
 # Printing functions
 summary(s::SisoTf) = string("tf(nx=", numstates(s), (isdiscrete(s) ?

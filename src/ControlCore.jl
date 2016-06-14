@@ -29,12 +29,17 @@ export
   series,
   paralell,
   feedback,
+  numstates,
+  numinputs,
+  numoutputs,
   degree,
   poles,
   numvec,
   denvec,
   numpoly,
-  denpoly
+  denpoly,
+  zpkdata,
+  samplingtime
 
 # Polynomials package is needed
 using Polynomials
