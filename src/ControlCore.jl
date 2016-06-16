@@ -29,12 +29,17 @@ export
   series,
   paralell,
   feedback,
+  numstates,
+  numinputs,
+  numoutputs,
   degree,
   poles,
   numvec,
   denvec,
   numpoly,
-  denpoly
+  denpoly,
+  zpkdata,
+  samplingtime
 
 # Polynomials package is needed
 using Polynomials
@@ -45,8 +50,6 @@ include("abstract/sisotf.jl")
 include("abstract/csisotf.jl")
 include("abstract/dsisotf.jl")
 include("abstract/sisoss.jl")
-include("abstract/dsisoss.jl")
-include("abstract/csisoss.jl")
 include("abstract/mimosystem.jl")
 include("dsisorational.jl")
 include("dsisozpk.jl")
@@ -54,8 +57,10 @@ include("dmimo.jl")
 include("csisorational.jl")
 include("csisozpk.jl")
 include("cmimo.jl")
-#include("continuoussssiso.jl")
-#include("continuousssmimo.jl")
+include("csisoss.jl")
+include("dsisoss.jl")
+include("cmimoss.jl")
+include("dmimoss.jl")
 include("display.jl")
 include("interconnections.jl")
 

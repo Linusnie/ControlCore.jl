@@ -1,4 +1,4 @@
-abstract SisoSs{T} <: SisoSystem{T}
+abstract SisoSs{T<:Real} <: SisoSystem{T}
 
 # Printing functions
 summary(s::SisoSs) = string("ss(nx=", numstates(s), (isdiscrete(s) ?

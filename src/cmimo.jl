@@ -1,15 +1,21 @@
-# Defined collection of similar siso systems
+# definition of continuous mimo transfer function
+
 CSiso = Union{CSisoTf}
 
-immutable CMimo{T<:CSiso} <: MimoSystem
-  m::Matrix{T}
+immutable CMimo{T<:CSiso, M<:AbstractArray{T}} <: MimoSystem{T}
+  m::M
   ny::Int
   nu::Int
-  function call{T}(::Type{CMimo}, m::Matrix{T})
-    return new{T}(m, size(m, 1), size(m, 2))
+  function call{M<:AbstractArray}(::Type{CMimo}, m::M)
+    @assert 0 < ndims(m)
+    @assert eltype(m) <: CSiso
+
+    T = eltype(M)
+    return new{T,M}(m, size(m, 1), size(m, 2))
   end
 end
 
+# creation of continuous mimo transfer functions
 
 """
     tf(num, den[, Ts])
@@ -48,178 +54,88 @@ z^-2 + z^-1 + 2
 Sampling time = 1
 ```
 """
-# ```julia
-# julia> tf(Polynomials.Poly([3,0,1]),Polynomials.Poly([2,1,1]),1)
-#    z^-2 + 3
-# ---------------
-# z^-2 + z^-1 + 2
-# Sampling time = 1
-# ```
-function tf{T1<:AbstractFloat}(num::Matrix{Vector{T1}}, den::Matrix{Vector{T1}})
-  ny, nu = size(num, 1, 2)
-  if (ny, nu) != size(den, 1, 2)
+function tf{M1<:AbstractArray, M2<:AbstractArray}(num::M1, den::M2)
+  @assert eltype(eltype(num)) <: CSiso
+  @assert eltype(eltype(den)) <: CSiso
+
+  T = promote_type(eltype(num), eltype(den))
+  if size(num, 1, 2) != size(den, 1, 2)
     warn("num and den dimensions must match")
     throw(DomainError())
   end
-  m = Array(CSisoRational{T1}, ny, nu)
+  m = similar(num, CSisoRational{T})
   for idx in eachindex(m)
-    m[idx] = tf(num_[idx], den_[idx])
-  end
-  DMimoTf(m)
-end
-
-function tf{T1<:AbstractFloat}(gain::Matrix{T1})
-  ny, nu = size(gain, 1, 2)
-  m = Matrix{CSisoRational{T1}}(ny, nu)
-  for idx in eachindex(m)
-    m[idx] = tf(gain[idx])
-  end
-  DMimoTf(m)
-end
-
-function zpk{T1<:AbstractFloat}(z::Matrix{Vector{Complex{T1}}}, p::Matrix{Vector{Complex{T1}}}, k::Matrix{T1})
-  ny, nu = size(z, 1, 2)
-  if (ny, nu) != size(p, 1, 2) || (ny, nu) != size(k, 1, 2)
-    warn("num and den dimensions must match")
-    throw(DomainError())
-  end
-  m = Array(CSisoZpk{T1}, ny, nu)
-  for idx in eachindex(m)
-    m[idx] = zpk(z_[idx], p_[idx], k[idx])
-  end
-  DMimoTf(m)
-end
-
-function zpk{T1<:AbstractFloat}(gain::Matrix{T1})
-  ny, nu = size(gain, 1, 2)
-  m = Matrix{CSisoZpk{T1}}(ny, nu)
-  for idx in eachindex(m)
-    m[idx] = zpk(gain[idx], Ts)
-  end
-  DMimoTf(m)
-end
-
-function tf{T1<:Real, T2<:Real}(num::Matrix{Vector{T1}}, den::Matrix{Vector{T2}})
-  ny, nu = size(num, 1, 2)
-  if (ny, nu) != size(den, 1, 2)
-    warn("num and den dimensions must match")
-    throw(DomainError())
-  end
-  T = promote_type(T1, T2, Float16)
-  num_ = convert(Matrix{Vector{T}}, num)
-  den_ = convert(Matrix{Vector{T}}, den)
-  m = Array(CSisoRational{T}, ny, nu)
-  for idx in eachindex(s.m)
-      m[idx] = tf(num_[idx], den_[idx])
-  end
-  return CMimo(m)
-end
-
-function tf{T1<:Real}(gain::Matrix{T1})
-  ny, nu = size(gain, 1, 2)
-  T = promote_type(T1, Float16)
-  gain_ = convert(Matrix{T}, gain)
-  m = Array(CSisoZpk{T1, T1}, ny, nu)
-  for idx in eachindex(s.m)
-    m[idx] = zpk(gain_[idx])
-  end
-  return CMimo(m)
-end
-
-function zpk{T1<:Number, T2<:Number, T3<:Real}(z::Matrix{Vector{T1}}, p::Matrix{Vector{T2}}, k::Matrix{T3})
-  ny, nu = size(z, 1, 2)
-  if (ny, nu) != size(p, 1, 2) || (ny, nu) != size(k, 1, 2)
-    warn("num and den dimensions must match")
-    throw(DomainError())
-  end
-  T  = promote_type(real(T1), real(T2), k, Float16)
-  z_ = convert(Matrix{Vector{Complex{T}}}, z)
-  p_ = convert(Matrix{Vector{Complex{T}}}, p)
-  k_ = convert(Matrix{T}, k_)
-  m = Array(CSisoZpk{T}, ny, nu)
-  for idx in eachindex(m)
-    m[idx] = zpk(z_[idx], p_[idx], k_[idx])
+    m[idx] = tf(num[idx], den[idx])
   end
   CMimo(m)
 end
 
-function zpk{T1<:Real}(gain::Matrix{T1})
-  ny, nu = size(gain, 1, 2)
-  T  = promote_type(T1, Float16)
-  gain_ = convert(Matrix{T}, gain)
-  m = Matrix{CSisoZpk{T}}(ny, nu)
+function tf{M<:AbstractArray}(gain::M)
+  @assert eltype(eltype(gain)) <: Real
+
+  m = similar(gain, CSisoRational{eltype(gain)})
   for idx in eachindex(m)
-    m[idx] = zpk(gain_[idx])
+    m[idx] = tf(gain[idx])
   end
-  CMimo(m, Ts)
+  CMimo(m)
 end
 
-function tf{T1<:CSisoTf}(m::Matrix{T1})
-  return CMimo(m)
-end
+function zpk{M1<:AbstractArray, M2<:AbstractArray, M3<:AbstractArray}(
+  z::M1, p::M2, k::M3)
+  @assert eltype(eltype(z)) <: Number
+  @assert eltype(eltype(p)) <: Number
+  @assert eltype(k)         <: Real
 
-one{T1}(s::CMimo{T1})       = CMimo(ones(T1,1,1))
-one{T1}(::Type{CMimo{T1}})  = CMimo(ones(T1,1,1))
-zero{T1}(s::CMimo{T1})      = CMimo(zeros(T1,1,1))
-zero{T1}(::Type{CMimo{T1}}) = CMimo(zeros(T1,1,1))
-
-function zeros{T1}(s::CMimo{T1})
-  z = Matrix{Vector}(s.ny, s.nu)
-  for idx in eachindex(z)
-    z[idx] = poles(t[idx])
+  T = promote_type(eltype(z), eltype(p))
+  # Validate input and output dimensions match
+  ny, nu = size(z, 1, 2)
+  if (ny, nu) != size(p, 1, 2) || (ny, nu) != size(k, 1, 2)
+    warn("num and den dimensions must match")
+    throw(DomainError())
   end
-  return z
-end
-
-function poles{T1}(s::CMimo{T1})
-  p = Matrix{Vector}(s.ny, s.nu)
-  for idx in eachindex(p)
-    p[idx] = poles(s.m[idx])
+  m = similar(z, CSisoZpk{T})
+  for idx in eachindex(m)
+    m[idx] = zpk(z_[idx], p_[idx], k[idx])
   end
-  return p
+  CMimo(m)
 end
 
-function numvec{T1}(s::CMimo{T1})
-  num = Matrix{Vector}(s.ny, s.nu)
-  for idx in eachindex(s)
-    num[idx] = numvec(s.m[idx])
+function zpk{M1<:AbstractArray}(gain::M1)
+  @assert eltype(gain) <: Real
+
+  m = similar(gain, CSisoZpk{eltype(gain)})
+  for idx in eachindex(m)
+    m[idx] = zpk(gain[idx])
   end
-  return num
+  CMimo(m)
 end
 
-function denvec{T1}(s::CMimo{T1})
-  den = Matrix{Vector}(s.ny, s.nu)
-  for idx in eachindex(s)
-    den[idx] = denvec(s.m[idx])
-  end
-  return den
-end
+# conversion and promotion
 
-function numpoly{T1}(s::CMimo{T1})
-  num = Matrix{Vector}(s.ny, s.nu)
-  for idx in eachindex(s)
-    num[idx] = numpoly(s.m[idx])
-  end
-  return num
-end
+promote_rule{T<:Real,T1,T2}(::Type{CMimo{T1,T2}}, ::Type{T}) = CMimo
+promote_rule{T<:Real}(::Type{CMimo}, ::Type{T}) = CMimo
+convert{T<:Real}(::Type{CMimo}, x::T)           =  zpk(sparse([1],[1],[x]))
 
-function denpoly{T1}(s::CMimo{T1})
-  den = Matrix{Vector}(s.ny, s.nu)
-  for idx in eachindex(s)
-    den[idx] = denpoly(s.m[idx])
-  end
-  return den
-end
+promote_rule{M1<:AbstractArray,T1,T2}(::Type{CMimo{T1,T2}}, ::Type{M1}) = CMimo
+promote_rule{M1<:AbstractArray}(::Type{CMimo}, ::Type{M1}) = CMimo
+convert{M1<:AbstractArray}(::Type{CMimo}, x::M1)           = zpk(x)
 
-function zpkdata{T1}(s::CMimo{T1})
-  zpkdata_ = Matrix{Vector}(s.ny, s.nu)
-  for idx in eachindex(s)
-    zpkdata_[idx] = zpkdata(s.m[idx])
-  end
-  return zpkdata_
-end
+# overloading identities
 
-samplingtime{T1}(s::CMimo{T1}) = -one(Float64)
+one(s::CMimo)        = zpk(sparse([1],[1],[Int8(1)]))
+one(::Type{CMimo})   = zpk(sparse([1],[1],[Int8(1)]))
+zero(s::CMimo)       = zpk(sparse([1],[1],[Int8(0)]))
+zero(::Type{CMimo})  = zpk(sparse([1],[1],[Int8(0)]))
+
+# interface implementation
+
+samplingtime(s::CMimo) = map(samplingtime, s.m)
+
+getmatrix(s::CMimo) = s.m
+
+isdiscrete(s::CMimo) = false
+
+# overload printing functions
 
 function show(io::IO, s::CMimo)
   println(io, "Continuous time transfer function model")
@@ -236,104 +152,92 @@ function showall{T1}(io::IO, s::CMimo{T1})
   end
 end
 
-function +{T1, T2}(
-    s1::CMimo{T1}, s2::CMimo{T2})
+# overload mathematical operations
+
+function +(s1::CMimo, s2::CMimo)
   if size(s1.m) != size(s2.m)
     warn("Systems have different shapes")
     throw(DomainError)
-  elseif s1.Ts != s2.Ts
-    warn("Sampling time mismatch")
-    throw(DomainError)
   end
-  s1, s2 = promote(s1, s2)
   m = s1.m + s2.m
-  return tf(m)
+  CMimo(m)
 end
 
-+{T1, T2<:Real}(s::CMimo{T1}, n::T2) = tf(s.m+n)
-+{T1, T2<:Real}(n::T2, s::CMimo{T1}) = +(s, n)
++{T<:Real}(s::CMimo, n::T)          = CMimo(s.m+n)
++{T<:Real}(n::T, s::CMimo)          = +(s, n)
 
-function +{T1, T2<:Real}(s::CMimo{T1}, n::Matrix{T2})
+function +{T<:Real}(s::CMimo, n::Matrix{T})
   if size(s.m) != size(n)
     warn("Systems have different shapes")
     throw(DomainError)
   end
   CMimo(s.m + n)
 end
-+{T1, T2<:Real}(n::Matrix{T2}, s::CMimo{T1})  = (s, n)
++{T<:Real}(n::Matrix{T}, s::CMimo)  = (s, n)
 
-.+{T1, T2<:Real}(n::T2, s::CMimo{T1}) = +(s, n)
-.+{T1, T2<:Real}(s::CMimo{T1}, n::T2) = +(s, n)
+.+{T<:Real}(n::T, s::CMimo)         = +(n, s)
+.+{T<:Real}(s::CMimo, n::T)         = +(s, n)
 
-.+{T1, T2<:Real}(n::Matrix{T2}, s::CMimo{T1}) = +(n, s)
-.+{T1, T2<:Real}(s::CMimo{T1}, n::Matrix{T2}) = +(s, n)
-.+{T1, T2}(s1::CMimo{T1}, s2::CMimo{T2}) = +(s1, s2)
+.+{T<:Real}(n::Matrix{T}, s::CMimo) = +(n, s)
+.+{T<:Real}(s::CMimo, n::Matrix{T}) = +(s, n)
+.+(s1::CMimo, s2::CMimo)            = +(s1, s2)
 
--{T1}(s::CMimo{T1}) = tf(-s.m)
+-(s::CMimo)                         = CMimo(-s.m)
 
--{T1, T2<:Real}(s::CMimo{T1}, n::Matrix{T2}) = +(s, -n)
--{T1, T2<:Real}(n::Matrix{T2}, s::CMimo{T1}) = +(-n, s)
--{T1, T2}(s1::CMimo{T1}, s2::CMimo{T2}) = +(s1,-s2)
--{T1, T2<:Real}(s::CMimo{T1}, n::T2) = +(s,-n)
--{T1, T2<:Real}(n::T2, s::CMimo{T1}) = +(-n, s)
+-{T<:Real}(s::CMimo, n::Matrix{T})  = +(s, -n)
+-{T<:Real}(n::Matrix{T}, s::CMimo)  = +(-n, s)
+-(s1::CMimo,s2::CMimo)              = +(s1,-s2)
+-{T<:Real}(s::CMimo, n::T)          = +(s,-n)
+-{T<:Real}(n::T, s::CMimo)          = +(-n, s)
 
-.-{T1, T2<:Real}(s::CMimo{T1}, n::T2) = +(s,-n)
-.-{T1, T2<:Real}(n::T2, s::CMimo{T1}) = +(-n, s)
+.-{T<:Real}(n::T, s::CMimo)         = +(-n, s)
+.-{T<:Real}(s::CMimo, n::T)         = +(s,-n)
 
-.-{T1, T2<:Real}(n::Matrix{T2}, s::CMimo{T1}) = -(n, s)
-.-{T1, T2<:Real}(s::CMimo{T1}, n::Matrix{T2}) = -(s, n)
+.-{T<:Real}(n::Matrix{T}, s::CMimo) = -(n, s)
+.-{T<:Real}(s::CMimo, n::Matrix{T}) = -(s, n)
 
-function *{T1, T2}(
-  s1::CMimo{T1}, s2::CMimo{T2})
+function *(s1::CMimo, s2::CMimo)
   if size(s1.m, 2) != size(s2.m, 1)
     warn("s1*s2: s1 must have same number of inputs as s2 has outputs")
     throw(DomainError())
   end
-  m = s1.m*s2.m
-  return tf(m)
+  CMimo(s1.m*s2.m)
 end
 
-function *{T1, T2<:Real}(
-  s::CMimo{T1}, n::T2)
-  tf(s.m*n)
-end
-*{T1, T2<:Real}(n::T2, s::CMimo{T1})  = *(s, n)
-*{T1, T2<:Real}(s::CMimo{T1}, n::Matrix{T2}) = tf(s.m*n)
-*{T1, T2<:Real}(n::Matrix{T2}, s::CMimo{T1}) = tf(n*s.m)
+*{T<:Real}(s::CMimo, n::T)          = CMimo(s.m*n)
+*{T<:Real}(n::T, s::CMimo)          = *(s, n)
 
-.*{T1, T2<:Real}(n::T2, s::CMimo{T1})         = *(n, s)
-.*{T1, T2<:Real}(s::CMimo{T1}, n::T2)         = *(s, n)
-.*{T1, T2<:Real}(n::Matrix{T2}, s::CMimo{T1}) = *(n, s)
-.*{T1, T2<:Real}(s::CMimo{T1}, n::Matrix{T2}) = *(s, n)
-.*{T1, T2}(s1::CMimo{T1}, s2::CMimo{T2}) = *(s1, s2)
+*{T<:Real}(s::CMimo, n::Matrix{T})  = CMimo(s.m*n)
+*{T<:Real}(n::Matrix{T}, s::CMimo)  = CMimo(n*s.m)
 
-function /{T1, T2<:Real}(n::T2, s::CMimo{T1})
-  warn("MIMO TransferFunction inversion isn't implemented yet")
+.*{T<:Real}(n::T, s::CMimo)         = *(n, s)
+.*{T<:Real}(s::CMimo, n::T)         = *(s, n)
+.*{T<:Real}(n::Matrix{T}, s::CMimo) = *(n, s)
+.*{T<:Real}(s::CMimo, n::Matrix{T}) = *(s, n)
+.*(s1::CMimo, s2::CMimo)            = *(s1,s2)
+
+function /{T<:Real}(n::T, s::CMimo)
+  warn("MIMO Transfer function inversion isn't implemented yet")
   throw(DomainError())
 end
-/{T1, T2}(s1::CMimo{T1}, s2::CMimo{T2}) = s1*(1/s2)
-/{T1, T2<:Real}(s::CMimo{T1}, n::T2) = tf(s.m/n)
-
-function /{T1, T2<:Real}(n::Matrix{T2}, s::CMimo{T1})
-  warn("MIMO TransferFunction inversion isn't implemented yet")
+/(s1::CMimo, s2::CMimo)             = s1*(1/s2)
+/{T<:Real}(s::CMimo, n::T)          = s*(1/n)
+function /{T<:Real}(n::Matrix{T}, t::CMimo)
+  warn("MIMO Transfer function inversion isn't implemented yet")
   throw(DomainError())
 end
-/{T1, T2<:Real}(s::CMimo{T1}, n::Matrix{T2}) = s*(1/n)
+/{T<:Real}(s::CMimo, n::Matrix{T})  = CMimo(s.m/n)
 
-./{T1, T2<:Real}(s::CMimo{T1}, n::T2) = s/n
-./{T1, T2<:Real}(n::T2, s::CMimo{T1}) = n/s
-./{T1, T2<:Real}(s::CMimo{T1}, n::Matrix{T2}) = s/n
-./{T1, T2<:Real}(n::Matrix{T2}, s::CMimo{T1}) = n/s
+./{T<:Real}(s::CMimo, n::T)         = s/n
+./{T<:Real}(n::T, s::CMimo)         = n/s
+./{T<:Real}(s::CMimo, n::Matrix{T}) = s/n
+./{T<:Real}(n::Matrix{T}, s::CMimo) = n/s
 
-function =={T1, T2}(
-  s1::CMimo{T1}, s2::CMimo{T2})
-  return s1.m != s2.m
-end
+==(s1::CMimo, s2::CMimo)            = s1.m != s2.m
 
-!={T1, T2}(
-  s1::CMimo{T1}, s2::CMimo{T2}) = !(s1.m == s2.m)
+!=(s1::CMimo, s2::CMimo)            = !(s1.m == s2.m)
 
-function isapprox{T1, T2}(
-  s1::CMimo{T1}, s2::CMimo{T2})
+function isapprox(
+  s1::CMimo, s2::CMimo)
   # TODO: Implement
 end

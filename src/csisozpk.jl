@@ -1,12 +1,19 @@
-immutable CSisoZpk{T<:AbstractFloat} <: CSisoTf{T}
-  z::Vector{Complex{T}}
-  p::Vector{Complex{T}}
-  k::T
-  function call{T}(::Type{CSisoZpk}, z::Vector{Complex{T}},
-    p::Vector{Complex{T}}, k::T)
-    new{T}(copy(z), copy(p), k)
+# definition of continuous rational transfer function
+
+immutable CSisoZpk{T<:Real, T1<:Real, T2<:Real, T3<:Real} <: CSisoTf{T}
+  z::Vector{Complex{T1}}
+  p::Vector{Complex{T2}}
+  k::T3
+
+  function call{T1<:Number, T2<:Number, T3<:Real}(::Type{CSisoZpk},
+      z::Vector{T1}, p::Vector{T2}, k::T3)
+
+    T = promote_type(real(T1), real(T2), T3)
+    new{T,real(T1),real(T2),T3}(copy(z), copy(p), k)
   end
 end
+
+# creation of continuous zpk transfer functions
 
 """
     zpk([z, p,] k[, Ts])
@@ -53,73 +60,68 @@ Sample Time: 1 (seconds)
 Discrete-time zero-pole-gain model
 ```
 """
-function zpk{T1<:AbstractFloat}(z::Vector{Complex{T1}},  p::Vector{Complex{T1}}, k::T1)
+function zpk{T1<:Number, T2<:Number, T3<:Real}(
+    z::Vector{T1}, p::Vector{T2}, k::T3)
   CSisoZpk(z, p, k)
 end
 
-function zpk{T1<:Number, T2<:Number, T3<:Real}(z::Vector{T1}, p::Vector{T2}, k::T3)
-  T   = promote_type(real(T1), real(T2), T3, Float16) # ensure AbstractFloat
-  z_  = convert(Vector{Complex{T}},z)
-  p_  = convert(Vector{Complex{T}},p)
-  k_  = convert(T,k)
-  CSisoZpk(z_, p_, k_)
-end
-
 function zpk{T1<:Real}(k::T1)
-  zpk(Vector{T1}(), Vector{T1}(), k)
+  CSisoZpk(Vector{Int8}(), Vector{Int8}(), k)
 end
 
-Base.promote_rule{T1<:AbstractFloat, T2<:AbstractFloat}(::CSisoZpk{T1}, ::CSisoZpk{T2}) = CSisoZpk{promote_type(T1, T2)}
-Base.convert{T1<:AbstractFloat, T2<:AbstractFloat}(::Type{CSisoZpk{T1}}, s::CSisoZpk{T2}) = zpk(convert(Poly{T1}, s.z), convert(Poly{T1}, s.p),  convert(T1, s.k))
+# conversion and promotion
 
-Base.promote_rule{T1<:AbstractFloat, T2<:Real}(::CSisoZpk{T1}, ::T2) = CSisoZpk{promote_type(T1, T2)}
-Base.convert{T1<:AbstractFloat, T2<:Real}(::Type{CSisoZpk{T1}}, x::T2) = zpk([one(T1)], [one(T1)], convert(T1, x))
+promote_rule{T1,T2,T3,T<:Real}(::Type{CSisoZpk{T1,T2,T3}}, ::Type{T}) =
+  CSisoZpk
+promote_rule{T<:Real}(::Type{CSisoZpk}, ::Type{T}) = CSisoZpk
+convert{T<:Real}(::Type{CSisoZpk}, x::T) = zpk(x)
 
-Base.one{T1<:AbstractFloat}(::Type{CSisoZpk{T1}}) = zpk(Vector{T1}(), Vector{T1}(), one(T1))
-Base.one{T1<:AbstractFloat}(s::Type{CSisoZpk{T1}}) = zpk(Vector{T1}(), Vector{T1}(), one(T1))
-Base.zero{T1<:AbstractFloat}(::Type{CSisoZpk{T1}}) = zpk(Vector{T1}(), Vector{T1}(), zero(T1))
-Base.zero{T1<:AbstractFloat}(s::Type{CSisoZpk{T1}}) = zpk(Vector{T1}(), Vector{T1}(), zero(T1))
+# overloading identities
 
-function zeros{T1<:AbstractFloat}(s::CSisoZpk{T1})
-  return copy(s.z)
+zero{T}(::Type{CSisoZpk{T}}) = zpk(zero(T))
+zero{T}(s::CSisoZpk{T})      = zpk(zero(T))
+one{T}(::Type{CSisoZpk{T}})  = zpk(one(T))
+one{T}(s::CSisoZpk{T})       = zpk(one(T))
+
+# interface implementation
+
+function zeros(s::CSisoZpk)
+  copy(s.z)
 end
 
-function poles{T1<:AbstractFloat}(s::CSisoZpk{T1})
-  return copy(s.p)
+function poles(s::CSisoZpk)
+  copy(s.p)
 end
 
-function numvec{T1<:AbstractFloat}(s::CSisoZpk{T1})
-  return coeffs(poly(s.z))[end:-1:1]
+function numvec(s::CSisoZpk)
+  coeffs(poly(s.z))[end:-1:1]
 end
 
-function denvec{T1<:AbstractFloat}(s::CSisoZpk{T1})
-  return coeffs(poly(s.p))[end:-1:1]
+function denvec(s::CSisoZpk)
+  coeffs(poly(s.p))[end:-1:1]
 end
 
-function numpoly{T1<:AbstractFloat}(s::CSisoZpk{T1})
-  return poly(s.z)
+function numpoly(s::CSisoZpk)
+  poly(s.z)
 end
 
-function denpoly{T1<:AbstractFloat}(s::CSisoZpk{T1})
-  return poly(s.p)
+function denpoly(s::CSisoZpk)
+  poly(s.p)
 end
 
-function zpkdata{T1<:AbstractFloat}(s::CSisoZpk{T1})
-  return copy(s.k)
+function zpkdata(s::CSisoZpk)
+  copy(s.k)
 end
 
-function samplingtime{T1<:AbstractFloat}(s::CSisoZpk{T1})
-  return -one(Float64)
+function samplingtime(s::CSisoZpk)
+  -one(Float64)
 end
+
+# overload printing functions
 
 function show(io::IO, s::CSisoZpk)
-  println(io, "Discrete time zpk transfer function model")
+  println(io, "Continuous time zpk transfer function model")
   println(io, "\ty = Gu")
-  if s.Ts > 0
-    println(io, "with Ts=", s.Ts, ".")
-  elseif s.Ts == 0
-    println(io, "with Ts=unspecified.")
-  end
 end
 
 function showall(io::IO, s::CSisoZpk)
@@ -128,73 +130,60 @@ function showall(io::IO, s::CSisoZpk)
   printtransferfunction(io::IO, s)
 end
 
-function +{T1<:AbstractFloat, T2<:AbstractFloat}(
-  s1::CSisoZpk{T1}, s2::CSisoZpk{T2})
-  T = promote_type(T1, T2)
-  z::Array{T}
-  p::Array{T}
-  k::T
+# overload mathematical operations
 
+function +(s1::CSisoZpk, s2::CSisoZpk)
   Z = s1.k*poly(s1.z)*poly(s2.p) + s2.k*poly(s2.z)*poly(s1.p)
   z = roots(Z)
   p = vcat(s1.p, s2.p)
-  k = Z[end] # Poly is now reverse order
-  return zpk(z, p, k)
+  k = real(Z[end]) # Poly is now reverse order
+  zpk(z, p, k)
 end
 
-function +{T1<:AbstractFloat, T2<:Real}(
-    s::CSisoZpk{T1}, n::T2)
+function +{T<:Real}(s::CSisoZpk, n::T)
   Z = s.k*poly(s.z) + n*poly(s.p)
-  z = roots(Z)
+  z::Array{Complex{Float64}} = roots(Z)
   p = s.p
   k = real(Z[end]) # Poly is now reverse order
-  return zpk(z_, p_, k)
+  CSisoZpk(z, p, k)
 end
-#+{T1<:AbstractFloat, T2<:Real}(s::CSisoZpk{T1}, n::T2)  = +(s, zpk(n))
-+{T1<:AbstractFloat, T2<:Real}(n::T2, s::CSisoZpk{T1})  = +(s, n)
++{T<:Real}(n::T, s::CSisoZpk)  = +(s, n)
 
-.+{T1<:AbstractFloat, T2<:Real}(s::CSisoZpk{T1}, n::T2) = +(s, zpk(n))
-.+{T1<:AbstractFloat, T2<:Real}(n::T2, s::CSisoZpk{T1}) = +(s, n)
-.+{T1<:AbstractFloat, T2<:AbstractFloat}(s1::CSisoZpk{T1}, s2::CSisoZpk{T2}) = +(s1, s2)
+.+{T<:Real}(s::CSisoZpk, n::T) = +(s, zpk(n))
+.+{T<:Real}(n::T, s::CSisoZpk) = +(s, n)
+.+(s1::CSisoZpk, s2::CSisoZpk) = +(s1, s2)
 
--{T1<:AbstractFloat}(s::CSisoZpk{T1}) = zpk(s.z, s.p, -s.k)
-function -{T1<:AbstractFloat, T2<:AbstractFloat}(
-  s1::CSisoZpk{T1}, s2::CSisoZpk{T2})
-  return +(s1, -s2)
-end
--{T1<:AbstractFloat, T2<:Real}(s::CSisoZpk{T1}, n::T2)  = +(s, -n)
--{T1<:AbstractFloat, T2<:Real}(n::T2, s::CSisoZpk{T1})  = +(n, -t)
+-(s::CSisoZpk)                 = zpk(s.z, s.p, -s.k)
+-(s1::CSisoZpk, s2::CSisoZpk)  = +(s1, -s2)
+-{T<:Real}(s::CSisoZpk, n::T)  = +(s, -n)
+-{T<:Real}(n::T, s::CSisoZpk)  = +(n, -s)
 
-.-{T1<:AbstractFloat, T2<:Real}(s::CSisoZpk{T1}, n::T2) = +(s, -n)
-.-{T1<:AbstractFloat, T2<:Real}(n::T2, s::CSisoZpk{T1}) = +(n, -t)
-.-{T1<:AbstractFloat, T2<:AbstractFloat}(s1::CSisoZpk{T1}, s2::CSisoZpk{T2}) = +(s1, -s2)
+.-{T<:Real}(s::CSisoZpk, n::T) = +(s, -n)
+.-{T<:Real}(n::T, s::CSisoZpk) = +(n, -s)
+.-(s1::CSisoZpk, s2::CSisoZpk) = +(s1, -s2)
 
-function *{T1<:AbstractFloat, T2<:AbstractFloat}(
-  s1::CSisoZpk{T1}, s2::CSisoZpk{T2})
+function *(s1::CSisoZpk, s2::CSisoZpk)
   z = vcat(s1.z, s2.z)
   p = vcat(s1.p, s2.p)
   k = s1.k*s2.k
-  return zpk(z, p, k)
+  zpk(z, p, k)
 end
-*{T1<:AbstractFloat, T2<:Real}(s::CSisoZpk{T1}, n::T2)  = zpk(s.z, s.p, n*s.k)
-*{T1<:AbstractFloat, T2<:Real}(n::T2, s::CSisoZpk{T1})  = *(s, n)
+*{T<:Real}(s::CSisoZpk, n::T)  = zpk(s.z, s.p, n*s.k)
+*{T<:Real}(n::T, s::CSisoZpk)  = *(s, n)
 
-.*{T1<:AbstractFloat, T2<:Real}(s::CSisoZpk{T1}, n::T2) = *(n, t)
-.*{T1<:AbstractFloat, T2<:Real}(n::T2, s::CSisoZpk{T1}) = *(s, n)
-.*{T1<:AbstractFloat, T2<:AbstractFloat}(s1::CSisoZpk{T1}, s2::CSisoZpk{T2}) = *(s1,s2)
+.*{T<:Real}(s::CSisoZpk, n::T) = *(n, s)
+.*{T<:Real}(n::T, s::CSisoZpk) = *(s, n)
+.*(s1::CSisoZpk, s2::CSisoZpk) = *(s1,s2)
 
-function /{T1<:AbstractFloat, T2<:Real}(
-  n::T2, s::CSisoZpk{T1})
-  return zpk(s.p, s.z, n./s.k, s.Ts)
-end
-/{T1<:AbstractFloat, T2<:Real}(s::CSisoZpk{T1}, n::T2)  = t*(1/n)
-/{T1<:AbstractFloat, T2<:AbstractFloat}(s1::CSisoZpk{T1}, s2::CSisoZpk{T2}) = s1*(1/s2)
-./{T1<:AbstractFloat, T2<:Real}(n::T2, s::CSisoZpk{T1}) = t*(1/n)
-./{T1<:AbstractFloat, T2<:Real}(s::CSisoZpk{T1}, n::T2) = t*(1/n)
-./{T1<:AbstractFloat, T2<:AbstractFloat}(s1::CSisoZpk{T1}, s2::CSisoZpk{T2}) = s1*(1/s2)
+/{T<:Real}(n::T, s::CSisoZpk)  = zpk(s.p, s.z, n./s.k, s.Ts)
+/{T<:Real}(s::CSisoZpk, n::T)  = s*(1/n)
+/(s1::CSisoZpk, s2::CSisoZpk)  = s1*(1/s2)
 
-function =={T1<:AbstractFloat, T2<:AbstractFloat}(
-  s1::CSisoZpk{T1}, s2::CSisoZpk{T2})
+./{T<:Real}(n::T, s::CSisoZpk) = s*(1/n)
+./{T<:Real}(s::CSisoZpk, n::T) = s*(1/n)
+./(s1::CSisoZpk, s2::CSisoZpk) = s1*(1/s2)
+
+function ==(s1::CSisoZpk, s2::CSisoZpk)
   fields = [:z, :p, :k]
   for field in fields
     if getfield(s1, field) != getfield(s2, field)
@@ -204,10 +193,8 @@ function =={T1<:AbstractFloat, T2<:AbstractFloat}(
   true
 end
 
-!={T1<:AbstractFloat, T2<:AbstractFloat}(
-  s1::CSisoZpk{T1}, s2::CSisoZpk{T2}) = !(s1==s2)
+!=(s1::CSisoZpk, s2::CSisoZpk) = !(s1==s2)
 
-function isapprox{T1<:AbstractFloat, T2<:AbstractFloat}(
-    s1::CSisoZpk{T1}, s2::CSisoZpk{T2})
+function isapprox(s1::CSisoZpk, s2::CSisoZpk)
   # TODO: Implement
 end
