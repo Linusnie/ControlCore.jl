@@ -7,10 +7,10 @@ s1 = tf([1, 2], [1, 2, 1], 1)
 s2 = tf([1, 2], [1, 2, 1], Float64(1))
 s3 = tf(Poly([Float64(2), 1.0]), Poly([1.0, Float64(2), 1]), 1)
 s4 = tf(5.0, 1)
-@test typeof(s1)     == ControlCore.DSisoRational{Int,Int,Int,Int}
-@test typeof(s2)     == ControlCore.DSisoRational{Float64,Int,Int,Float64}
-@test typeof(s3)     == ControlCore.DSisoRational{Float64,Float64,Float64,Int}
-@test typeof(s4)     == ControlCore.DSisoRational{Float64,Float64,Float64,Int}
+@test typeof(s1)     == ControlCore.DSisoRational{Int,Int,Int}
+@test typeof(s2)     == ControlCore.DSisoRational{Int,Int,Int}
+@test typeof(s3)     == ControlCore.DSisoRational{Float64,Float64,Float64}
+@test typeof(s4)     == ControlCore.DSisoRational{Float64,Float64,Float64}
 
 for s in [s1,s2,s3]
 # I/O mapping
@@ -41,7 +41,5 @@ for s in [s1,s2,s3]
   @test zpkdata(s)      == (zeros(s), poles(s), s.num[1]/s.den[1])
   @test samplingtime(s) == s.Ts
 end
-
-
 
 # Addition

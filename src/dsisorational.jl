@@ -12,7 +12,7 @@ immutable DSisoRational{T<:Real, T1<:Real, T2<:Real} <: DSisoTf{T}
 
     tmp = max(Ts, zero(Float64))
     Ts_ = tmp == zero(Float64) ? NaN : tmp
-    T = promote_type(T1, eltype(num), eltype(den))
+    T = promote_type(eltype(num), eltype(den))
     pnum = Poly(num)
     pden = Poly(den)
     new{T,eltype(num),eltype(den)}(pnum, pden, Ts_)
@@ -107,6 +107,7 @@ function +(s1::DSisoRational, s2::DSisoRational)
   if s1.Ts == s2.Ts || s2.Ts == NaN
     return tf(s1.num*s2.den + s2.num*s1.den, s1.den*s2.den, s1.Ts)
   elseif s1.Ts == NaN
+    
     return tf(s1.num*s2.den + s2.num*s1.den, s1.den*s2.den, s2.Ts)
   else
     warn("Sampling time mismatch")
