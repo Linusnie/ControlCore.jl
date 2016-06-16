@@ -9,7 +9,7 @@ immutable CSisoZpk{T<:Real, T1<:Real, T2<:Real, T3<:Real} <: CSisoTf{T}
       z::Vector{T1}, p::Vector{T2}, k::T3)
 
     T = promote_type(real(T1), real(T2), T3)
-    new{T,real(T1),real(T2),T3}(copy(z), copy(p), k)
+    new{T,real(T1),real(T2),T3}(z, p, k)
   end
 end
 
@@ -71,17 +71,21 @@ end
 
 # conversion and promotion
 
-promote_rule{T1,T2,T3,T<:Real}(::Type{CSisoZpk{T1,T2,T3}}, ::Type{T}) =
+promote_rule{T1,T2,T3,T4,T5<:Real}(::Type{CSisoZpk{T1,T2,T3,T4}}, ::Type{T5}) =
   CSisoZpk
-promote_rule{T<:Real}(::Type{CSisoZpk}, ::Type{T}) = CSisoZpk
+promote_rule{T1,T<:Real}(::Type{CSisoZpk{T1}}, ::Type{T}) = CSisoZpk
 convert{T<:Real}(::Type{CSisoZpk}, x::T) = zpk(x)
 
 # overloading identities
 
-zero{T}(::Type{CSisoZpk{T}}) = zpk(zero(T))
-zero{T}(s::CSisoZpk{T})      = zpk(zero(T))
-one{T}(::Type{CSisoZpk{T}})  = zpk(one(T))
-one{T}(s::CSisoZpk{T})       = zpk(one(T))
+zero{T1,T2,T3,T4}(::Type{CSisoZpk{T1,T2,T3,T4}}) = zpk(zero(Int8))
+zero{T}(::Type{CSisoZpk{T}})                     = zpk(zero(Int8))
+zero(::Type{CSisoZpk})                           = zpk(zero(Int8))
+zero{T}(s::CSisoZpk{T})                          = zpk(zero(Int8))
+one{T1,T2,T3,T4}(::Type{CSisoZpk{T1,T2,T3,T4}})  = zpk(one(Int8))
+one{T}(::Type{CSisoZpk{T}})                      = zpk(one(Int8))
+one(::Type{CSisoZpk})                            = zpk(one(Int8))
+one{T}(s::CSisoZpk{T})                           = zpk(one(Int8))
 
 # interface implementation
 
@@ -94,11 +98,11 @@ function poles(s::CSisoZpk)
 end
 
 function numvec(s::CSisoZpk)
-  coeffs(poly(s.z))[end:-1:1]
+  real(coeffs(poly(s.z))[end:-1:1])
 end
 
 function denvec(s::CSisoZpk)
-  coeffs(poly(s.p))[end:-1:1]
+  real(coeffs(poly(s.p))[end:-1:1])
 end
 
 function numpoly(s::CSisoZpk)
@@ -110,11 +114,7 @@ function denpoly(s::CSisoZpk)
 end
 
 function zpkdata(s::CSisoZpk)
-  copy(s.k)
-end
-
-function samplingtime(s::CSisoZpk)
-  -one(Float64)
+  (s.z, s.p, s.k)
 end
 
 # overload printing functions
@@ -133,9 +133,11 @@ end
 # overload mathematical operations
 
 function +(s1::CSisoZpk, s2::CSisoZpk)
-  Z = s1.k*poly(s1.z)*poly(s2.p) + s2.k*poly(s2.z)*poly(s1.p)
-  z = roots(Z)
-  p = vcat(s1.p, s2.p)
+  p1,p2,pcommon = rmcommon(copy(s1.p), copy(s2.p))
+  z1,z2,zcommon = rmcommon(copy(s1.z), copy(s2.z))
+  Z = s1.k*poly(z1)*poly(p2) + s2.k*poly(z2)*poly(p1)
+  z = vcat(convert(Vector{Complex{Float64}},roots(Z)), zcommon)
+  p = vcat(p1, p2, pcommon)
   k = real(Z[end]) # Poly is now reverse order
   zpk(z, p, k)
 end
@@ -149,11 +151,12 @@ function +{T<:Real}(s::CSisoZpk, n::T)
 end
 +{T<:Real}(n::T, s::CSisoZpk)  = +(s, n)
 
-.+{T<:Real}(s::CSisoZpk, n::T) = +(s, zpk(n))
-.+{T<:Real}(n::T, s::CSisoZpk) = +(s, n)
+.+{T<:Real}(s::CSisoZpk, n::T) = +(s, n)
+.+{T<:Real}(n::T, s::CSisoZpk) = +(n, s)
 .+(s1::CSisoZpk, s2::CSisoZpk) = +(s1, s2)
 
--(s::CSisoZpk)                 = zpk(s.z, s.p, -s.k)
+-(s::CSisoZpk)                 = zpk(copy(s.z), copy(s.p), -s.k)
+
 -(s1::CSisoZpk, s2::CSisoZpk)  = +(s1, -s2)
 -{T<:Real}(s::CSisoZpk, n::T)  = +(s, -n)
 -{T<:Real}(n::T, s::CSisoZpk)  = +(n, -s)
@@ -163,23 +166,25 @@ end
 .-(s1::CSisoZpk, s2::CSisoZpk) = +(s1, -s2)
 
 function *(s1::CSisoZpk, s2::CSisoZpk)
-  z = vcat(s1.z, s2.z)
-  p = vcat(s1.p, s2.p)
+  z1,p2,pcommon = rmcommon(s1.z, s2.p)
+  p1,z2,zcommon = rmcommon(s1.p, s2.z)
+  z = vcat(z1, z2)
+  p = vcat(p1, p2)
   k = s1.k*s2.k
   zpk(z, p, k)
 end
-*{T<:Real}(s::CSisoZpk, n::T)  = zpk(s.z, s.p, n*s.k)
+*{T<:Real}(s::CSisoZpk, n::T)  = zpk(copy(s.z), copy(s.p), n*s.k)
 *{T<:Real}(n::T, s::CSisoZpk)  = *(s, n)
 
 .*{T<:Real}(s::CSisoZpk, n::T) = *(n, s)
 .*{T<:Real}(n::T, s::CSisoZpk) = *(s, n)
 .*(s1::CSisoZpk, s2::CSisoZpk) = *(s1,s2)
 
-/{T<:Real}(n::T, s::CSisoZpk)  = zpk(s.p, s.z, n./s.k, s.Ts)
+/{T<:Real}(n::T, s::CSisoZpk)  = zpk(copy(s.p), copy(s.z), n./s.k)
 /{T<:Real}(s::CSisoZpk, n::T)  = s*(1/n)
 /(s1::CSisoZpk, s2::CSisoZpk)  = s1*(1/s2)
 
-./{T<:Real}(n::T, s::CSisoZpk) = s*(1/n)
+./{T<:Real}(n::T, s::CSisoZpk) = n*(1/s)
 ./{T<:Real}(s::CSisoZpk, n::T) = s*(1/n)
 ./(s1::CSisoZpk, s2::CSisoZpk) = s1*(1/s2)
 
@@ -195,6 +200,8 @@ end
 
 !=(s1::CSisoZpk, s2::CSisoZpk) = !(s1==s2)
 
-function isapprox(s1::CSisoZpk, s2::CSisoZpk)
-  # TODO: Implement
+function isapprox(s1::CSisoZpk, s2::CSisoZpk,
+    rtol::Real=sqrt(eps()), atol::Real=0)
+  sdiff = s2-s1
+  norm(sdiff.k) < rtol
 end

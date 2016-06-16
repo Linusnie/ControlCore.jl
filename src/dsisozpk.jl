@@ -9,10 +9,9 @@ immutable DSisoZpk{T<:Real, T1<:Real, T2<:Real, T3<:Real} <: DSisoTf{T}
   function call{T1<:Number, T2<:Number, T3<:Real}(::Type{DSisoZpk},
     z::Vector{T1}, p::Vector{T2}, k::T3, Ts::Float64)
 
-    tmp = max(Ts, zero(Float64))
-    Ts_ = tmp == zero(Float64) ? NaN : tmp
+    Ts_ = Ts > zero(Float64) ? Ts : NaN
     T = promote_type(real(T1), real(T2), T3)
-    new{T,real(T1),real(T2),T3}(copy(z), copy(p), k, Ts_)
+    new{T,real(T1),real(T2),T3}(z, p, k, Ts_)
   end
 end
 
@@ -36,10 +35,14 @@ convert{T<:Real}(::Type{DSisoZpk}, x::T) = zpk(x, zero(Float64))
 
 # overloading identities
 
-zero{T}(::Type{DSisoZpk{T}}) = zpk(zero(T), zero(Float64))
-zero{T}(s::DSisoZpk{T})      = zpk(zero(T), zero(Float64))
-one{T}(::Type{DSisoZpk{T}})  = zpk(one(T), zero(Float64))
-one{T}(s::DSisoZpk{T})       = zpk(one(T), zero(Float64))
+zero{T1,T2,T3,T4}(::Type{DSisoZpk{T1,T2,T3,T4}}) = zpk(zero(Int8), zero(Float64))
+zero{T}(::Type{DSisoZpk{T}})                     = zpk(zero(Int8), zero(Float64))
+zero(::Type{DSisoZpk})                           = zpk(zero(Int8), zero(Float64))
+zero{T}(s::DSisoZpk{T})                          = zpk(zero(Int8), zero(Float64))
+one{T1,T2,T3,T4}(::Type{DSisoZpk{T1,T2,T3,T4}})  = zpk(one(Int8), zero(Float64))
+one{T}(::Type{DSisoZpk{T}})                      = zpk(one(Int8), zero(Float64))
+one(::Type{DSisoZpk})                            = zpk(one(Int8), zero(Float64))
+one{T}(s::DSisoZpk{T})                           = zpk(one(Int8), zero(Float64))
 
 # interface implementation
 
@@ -52,11 +55,11 @@ function poles(s::DSisoZpk)
 end
 
 function numvec(s::DSisoZpk)
-  coeffs(poly(s.z))[end:-1:1]
+  real(coeffs(poly(s.z))[end:-1:1])
 end
 
 function denvec(s::DSisoZpk)
-  coeffs(poly(s.p))[end:-1:1]
+  real(coeffs(poly(s.p))[end:-1:1])
 end
 
 function numpoly(s::DSisoZpk)
@@ -68,7 +71,7 @@ function denpoly(s::DSisoZpk)
 end
 
 function zpkdata(s::DSisoZpk)
-  copy(s.k)
+  (s.z, s.p, s.k)
 end
 
 function samplingtime(s::DSisoZpk)
@@ -95,39 +98,44 @@ end
 
 # overload mathematical operations
 
-function +(s1::DSisoZpk, s2::DSisoZpk)
-  if s1.Ts == s2.Ts || s2.Ts == NaN
-    Z = s1.k*poly(s1.z)*poly(s2.p) + s2.k*poly(s2.z)*poly(s1.p)
-    z::Array{Complex{Float64}} = roots(Z)
-    p = vcat(s1.p, s2.p)
-    k = real(Z[end]) # Poly is now reverse order
-    return zpk(z, p, k, s1.Ts)
-  elseif s1.Ts == NaN
-    Z = s1.k*poly(s1.z)*poly(s2.p) + s2.k*poly(s2.z)*poly(s1.p)
-    z = roots(Z)
-    p = vcat(s1.p, s2.p)
-    k = real(Z[end]) # Poly is now reverse order
-    return zpk(z, p, k, s2.Ts)
+function +{T1,T2,T3,T4,T5,T6,T7,T8}(s1::DSisoZpk{T1,T2,T3,T4}, s2::DSisoZpk{T5,T6,T7,T8})
+  Ts::Float64
+  if s1.Ts == s2.Ts || isnan(s2.Ts)
+    Ts = s1.Ts
+  elseif isnan(s1.Ts)
+    Ts = s2.Ts
   else
     warn("Sampling time mismatch")
     throw(DomainError())
   end
+  #Tz = float(promote_type(T1, T5))
+  #Tp = promote_type(T3, T7)
+  #Tk = promote_type(T1, T5)
+  p1,p2,pcommon = rmcommon(copy(s1.p), copy(s2.p))
+  z1,z2,zcommon = rmcommon(copy(s1.z), copy(s2.z))
+  Z = s1.k*poly(z1)*poly(p2) + s2.k*poly(z2)*poly(p1)
+  z = vcat(convert(Vector{Complex{Float64}},roots(Z)), zcommon)
+  p = vcat(p1, p2, pcommon)
+  k = real(Z[end]) # Poly is now reverse order
+  zpk(z, p, k, Ts) #::DSisoZpk{Tz,Tz,Tp,Tk}
 end
 
-function +{T<:Real}(s::DSisoZpk, n::T)
+function +{T1,T2,T3,T4,T<:Real}(s::DSisoZpk{T1,T2,T3,T4}, n::T)
+  Tk = promote_type(T1, T)
+  Tz = float(promote_type(T1, T))
   Z = s.k*poly(s.z) + n*poly(s.p)
-  z::Array{Complex{Float64}} = roots(Z)
-  p = s.p
-  k = real(Z[end]) # Poly is now reverse order
-  zpk(z, p, k, s.Ts)
+  z = roots(Z)
+  p = copy(s.p)
+  k = real(Z[end])
+  zpk(z, p, k, s.Ts)::DSisoZpk{Tz,Tz,T3,Tk}
 end
 +{T<:Real}(n::T, s::DSisoZpk)  = +(s, n)
 
-.+{T<:Real}(s::DSisoZpk, n::T) = +(n, s)
-.+{T<:Real}(n::T, s::DSisoZpk) = +(s, n)
+.+{T<:Real}(s::DSisoZpk, n::T) = +(s, n)
+.+{T<:Real}(n::T, s::DSisoZpk) = +(n, s)
 .+(s1::DSisoZpk, s2::DSisoZpk) = +(s1, s2)
 
--(s::DSisoZpk)                 = zpk(s.z, s.p, -s.k, s.Ts)
+-(s::DSisoZpk)                 = zpk(copy(s.z), copy(s.p), -s.k, s.Ts)
 
 -(s1::DSisoZpk, s2::DSisoZpk)  = +(s1, -s2)
 -{T<:Real}(s::DSisoZpk, n::T)  = +(s, -n)
@@ -138,48 +146,46 @@ end
 .-(s1::DSisoZpk, s2::DSisoZpk) = +(s1, -s2)
 
 function *(s1::DSisoZpk, s2::DSisoZpk)
-  if s1.Ts == s2.Ts || s2.Ts == NaN
-    z = vcat(s1.z, s2.z)
-    p = vcat(s1.p, s2.p)
-    k = s1.k*s2.k
-    return zpk(z, p, k, s1.Ts)
-  elseif s1.Ts == NaN
-    z = vcat(s1.z, s2.z)
-    p = vcat(s1.p, s2.p)
-    k = s1.k*s2.k
-    return zpk(z, p, k, s2.Ts)
+  Ts::Float64
+  if s1.Ts == s2.Ts || isnan(s2.Ts)
+    Ts = s1.Ts
+  elseif isnan(s1.Ts)
+    s2.Ts
   else
     warn("Sampling time mismatch")
     throw(DomainError())
   end
+  z1,p2,pcommon = rmcommon(s1.z, s2.p)
+  p1,z2,zcommon = rmcommon(s1.p, s2.z)
+  z = vcat(z1, z2)
+  p = vcat(p1, p2)
+  k = s1.k*s2.k
+  zpk(z, p, k, Ts)
 end
-*{T<:Real}(s::DSisoZpk, n::T)  = zpk(s.z, s.p, n*s.k, s.Ts)
+*{T<:Real}(s::DSisoZpk, n::T)  = zpk(copy(s.z), copy(s.p), n*s.k, s.Ts)
 *{T<:Real}(n::T, s::DSisoZpk)  = *(s, n)
 
 .*{T<:Real}(s::DSisoZpk, n::T) = *(n, s)
 .*{T<:Real}(n::T, s::DSisoZpk) = *(s, n)
 .*(s1::DSisoZpk, s2::DSisoZpk) = *(s1, s2)
 
-/{T<:Real}(n::T, s::DSisoZpk)  = zpk(s.p, s.z, n./s.k, s.Ts)
-/(s1::DSisoZpk, s2::DSisoZpk)  = s1*(1/s2)
+/{T<:Real}(n::T, s::DSisoZpk)  = zpk(copy(s.p), copy(s.z), n./s.k, s.Ts)
 /{T<:Real}(s::DSisoZpk, n::T)  = s*(1/n)
+/(s1::DSisoZpk, s2::DSisoZpk)  = s1*(1/s2)
 
 ./{T<:Real}(n::T, s::DSisoZpk) = n*(1/s)
 ./{T<:Real}(s::DSisoZpk, n::T) = s*(1/n)
 ./(s1::DSisoZpk, s2::DSisoZpk) = s1*(1/s2)
 
 function ==(s1::DSisoZpk, s2::DSisoZpk)
-  fields = [:Ts, :z, :p, :k]
-  for field in fields
-    if getfield(s1, field) != getfield(s2, field)
-      return false
-    end
-  end
-  true
+  s1.Ts == s2.Ts && s1.z == s2.z &&
+    s1.p == s2.p && s1.k == s2.k
 end
 
 !=(s1::DSisoZpk, s2::DSisoZpk) = !(s1==s2)
 
-function isapprox(s1::DSisoZpk, s2::DSisoZpk)
-  # TODO: Implement
+function isapprox(s1::DSisoZpk, s2::DSisoZpk,
+    rtol::Real=sqrt(eps()), atol::Real=0)
+  sdiff = s2-s1
+  norm(sdiff.k) < rtol
 end

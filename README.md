@@ -2,8 +2,11 @@
 
 **Build Status**
 
--  Unix/OSX: [![Build Status][travis-ci-img]][travis-ci-link] [![Coverage Status](https://coveralls.io/repos/github/KTH-AC/ControlCore.jl/badge.svg?branch=master)](https://coveralls.io/github/KTH-AC/ControlCore.jl?branch=master)
--  Windows: [![Build status][appveyor-ci-img]][appveyor-ci-link]
+-  Unix/OSX: [![julia v0.4][travis-ci-img-0.4]][travis-ci-link],
+    [![julia v0.5][travis-ci-img-0.5]][travis-ci-link]
+-  Windows: [![julia v0.4][appveyor-ci-img-0.4]][appveyor-ci-link],
+    [![julia v0.5][appveyor-ci-img-0.5]][appveyor-ci-link]
+-  Coverage: [![Coverage Status](https://coveralls.io/repos/github/KTH-AC/ControlCore.jl/badge.svg?branch=master)](https://coveralls.io/github/KTH-AC/ControlCore.jl?branch=master)
 
 Core control systems functionality for **analysis**, **design** and
 **identification** tools to be implemented later on.
@@ -152,7 +155,9 @@ We need to require the `LtiSystem` to have:
 
 for iteration/slicing/etc. functions to work properly.
 
-[travis-ci-img]: https://travis-ci.org/KTH-AC/ControlCore.jl.svg?branch=master
+[travis-ci-img-0.4]: https://travis-ci.org/KTH-AC/ControlCore.jl.svg?branch=master&ver=0.4
+[travis-ci-img-0.5]: https://travis-ci.org/KTH-AC/ControlCore.jl.svg?branch=master&ver=0.5
 [travis-ci-link]: https://travis-ci.org/KTH-AC/ControlCore.jl
-[appveyor-ci-img]: https://ci.appveyor.com/api/projects/status/geqrrlwve5ycjh0a/branch/master?svg=true
+[appveyor-ci-img-0.4]: https://ci.appveyor.com/api/projects/status/geqrrlwve5ycjh0a/branch/master?svg=true&ver=0.4
+[appveyor-ci-img-0.5]: https://ci.appveyor.com/api/projects/status/geqrrlwve5ycjh0a/branch/master?svg=true&ver=0.5
 [appveyor-ci-link]: https://ci.appveyor.com/project/aytekinar/controlcore-jl/branch/master

@@ -19,19 +19,21 @@ import Base: start, next, done, eltype, length, eachindex, endof
 import Base: showcompact, show, showall, summary
 
 # Import mathematical operations for overloading
-import Base: +, .+, -, .-, *, .*, /, ./, ==, !=, isapprox
+import Base: +, .+, -, .-, *, .*, /, ./, ==, !=, isapprox, transpose
 
 # Export only the useful functions
 export
   tf,
   zpk,
   ss,
+  mimo,
   series,
   paralell,
   feedback,
   numstates,
   numinputs,
   numoutputs,
+  getmatrix,
   degree,
   poles,
   numvec,
@@ -63,5 +65,6 @@ include("cmimoss.jl")
 include("dmimoss.jl")
 include("display.jl")
 include("interconnections.jl")
+include("conversions.jl")
 
 end # module
