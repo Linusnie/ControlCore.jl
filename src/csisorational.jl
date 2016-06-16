@@ -4,30 +4,29 @@ immutable CSisoRational{T<:Real, T1<:Real, T2<:Real} <: CSisoTf{T}
   num::Poly{T1}
   den::Poly{T2}
 
-  function call(::Type{CSisoRational}, num::AbstractVector,
-      den::AbstractVector)
-    @assert eltype(num) <: Number string("num must be vector of T<:Number elements")
-    @assert eltype(den) <: Number string("den must be vector of T<:Number elements")
-    pnum = Poly(num)
-    pden = Poly(den)
-
-    T = promote_type(eltype(z), eltype(p))
-    new{T,eltype(num),eltype(den)}(pnum, pden)
+  function call{T1<:Real, T2<:Real}(::Type{CSisoRational}, num::Poly{T1},
+      den::Poly{T2})
+    T = promote_type(eltype(num), eltype(den))
+    new{T,eltype(num),eltype(den)}(num, den)
   end
 end
 
 # creation of continuous rational transfer functions
 
-function tf{T1<:Real, T2<:Real}(num::Vector{T1}, den::Vector{T2})
-  CSisoRational(num_[end:-1:1], den_[end:-1:1])
+function tf{V1<:AbstractVector, V2<:AbstractVector}(num::V1, den::V2)
+  @assert eltype(num) <: Number string("num must be vector of T<:Number elements")
+  @assert eltype(den) <: Number string("den must be vector of T<:Number elements")
+  pnum = Poly(num[end:-1:1])
+  pden = Poly(den[end:-1:1])
+  CSisoRational(pnum, pden)
 end
 
-function tf{T1<:Real, T2<:Real}(num::Vector{T1}, den::Vector{T2})
-  CSisoRational(num_[end:-1:1], den_[end:-1:1])
+function tf{T1<:Real, T2<:Real}(num::Poly{T1}, den::Poly{T2})
+  CSisoRational(num, den)
 end
 
 function tf{T1<:Real}(gain::T1)
-  CSisoRational([gain], [one(T1)])
+  CSisoRational(Poly(gain), Poly(one(T1)))
 end
 
 # conversion and promotion
@@ -93,8 +92,12 @@ end
 
 # overload mathematical operations
 
-+(s1::CSisoRational, s2::CSisoRational)  =
-  tf(s1.num*s2.den + s2.num*s1.den, s1.den*s2.den)
+function +(s1::CSisoRational, s2::CSisoRational)
+  dengcd               = gcd(s1.den,s2.den)
+  den1::typeof(s1.den) = s1.den/dengcd
+  den2::typeof(s2.den) = s2.den/dengcd
+  return tf(s1.num*den2 + s2.num*den1, den1*den2)
+end
 +{T<:Real}(s::CSisoRational, n::T)       = tf(s.num + n*s.den, s.den)
 +{T<:Real}(n::T, s::CSisoRational)       = s + n
 
@@ -111,7 +114,16 @@ end
 .-{T<:Real}(n::T, s::CSisoRational)      = -(n, s)
 .-(s1::CSisoRational, s2::CSisoRational) = +(s1, -s2)
 
-*(s1::CSisoRational, s2::CSisoRational)  = tf(s1.num*s2.num, s1.den*s2.den)
+function *(s1::CSisoRational, s2::CSisoRational)
+  gcd1                 = gcd(s1.num,s2.den)
+  num1::typeof(s1.num) = s1.num/gcd1
+  den2::typeof(s2.den) = s2.den/gcd1
+  gcd2                 = gcd(s2.num,s1.den)
+  num2::typeof(s2.num) = s2.num/gcd1
+  den1::typeof(s1.den) = s1.den/gcd1
+  return tf(num1*num2, den1*den2)
+end
+
 *{T<:Real}(s::CSisoRational, n::T)       = tf(s.num*n, s.den)
 *{T<:Real}(n::T, s::CSisoRational)       = *(s, n)
 

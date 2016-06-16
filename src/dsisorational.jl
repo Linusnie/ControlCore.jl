@@ -5,33 +5,31 @@ immutable DSisoRational{T<:Real, T1<:Real, T2<:Real} <: DSisoTf{T}
   den::Poly{T2}
   Ts::Float64
 
-  function call(::Type{DSisoRational},
-      num::AbstractVector, den::AbstractVector, Ts::Float64)
-    @assert eltype(num) <: Number string("num must be vector of T<:Number elements")
-    @assert eltype(den) <: Number string("den must be vector of T<:Number elements")
-
-    tmp = max(Ts, zero(Float64))
-    Ts_ = tmp == zero(Float64) ? NaN : tmp
+  function call{T1<:Real, T2<:Real}(::Type{DSisoRational}, num::Poly{T1},
+      den::Poly{T2}, Ts::Float64)
     T = promote_type(eltype(num), eltype(den))
-    pnum = Poly(num)
-    pden = Poly(den)
-    new{T,eltype(num),eltype(den)}(pnum, pden, Ts_)
+    new{T,eltype(num),eltype(den)}(num, den, Ts)
   end
 end
 
 # creation of discrete rational transfer functions
 
-function tf{T1<:Real, T2<:Real, T3<:Real}(num::AbstractVector{T1},
-    den::AbstractVector{T2}, Ts::T3)
-  DSisoRational(num[end:-1:1], den[end:-1:1], Float64(Ts))
+function tf{V1<:AbstractVector, V2<:AbstractVector, T3<:Real}(num::V1, den::V2,
+    Ts::T3)
+  @assert eltype(num) <: Number string("num must be vector of T<:Number elements")
+  @assert eltype(den) <: Number string("den must be vector of T<:Number elements")
+
+  pnum = Poly(num[end:-1:1])
+  pden = Poly(den[end:-1:1])
+  DSisoRational(pnum, pden, Float64(Ts))
 end
 
 function tf{T1<:Real, T2<:Real, T3<:Real}(num::Poly{T1}, den::Poly{T2}, Ts::T3)
-  tf(coeffs(num)[end:-1:1], coeffs(den)[end:-1:1], Float64(Ts))
+  DSisoRational(num, den, Float64(Ts))
 end
 
 function tf{T1<:Real, T2<:Real}(gain::T1, Ts::T2)
-  DSisoRational([gain], [one(T1)], Float64(Ts))
+  DSisoRational(Poly([gain]), Poly([one(T1)]), Float64(Ts))
 end
 
 # conversion and promotion
@@ -105,10 +103,15 @@ end
 
 function +(s1::DSisoRational, s2::DSisoRational)
   if s1.Ts == s2.Ts || s2.Ts == NaN
-    return tf(s1.num*s2.den + s2.num*s1.den, s1.den*s2.den, s1.Ts)
+    dengcd               = gcd(s1.den,s2.den)
+    den1::typeof(s1.den) = s1.den/dengcd
+    den2::typeof(s2.den) = s2.den/dengcd
+    return tf(s1.num*den2 + s2.num*den1, den1*den2, s1.Ts)
   elseif s1.Ts == NaN
-    
-    return tf(s1.num*s2.den + s2.num*s1.den, s1.den*s2.den, s2.Ts)
+    dengcd               = gcd(s1.den,s2.den)
+    den1                 = s1.den/dengcd
+    den2                 = s2.den/dengcd
+    return tf(s1.num*den2 + s2.num*den1, den1*den2, s2.Ts)
   else
     warn("Sampling time mismatch")
     throw(DomainError())
@@ -133,9 +136,21 @@ end
 
 function *(s1::DSisoRational, s2::DSisoRational)
   if s1.Ts == s2.Ts || s2.Ts == NaN
-    return tf(s1.num*s2.num, s1.den*s2.den, s1.Ts)
+    gcd1                 = gcd(s1.num,s2.den)
+    num1::typeof(s1.num) = s1.num/gcd1
+    den2::typeof(s2.den) = s2.den/gcd1
+    gcd2                 = gcd(s2.num,s1.den)
+    num2::typeof(s2.num) = s2.num/gcd2
+    den1::typeof(s1.den) = s1.den/gcd2
+    return tf(num1*num2, den1*den2, s1.Ts)
   elseif s1.Ts == NaN
-    return tf(s1.num*s2.num, s1.den*s2.den, s2.Ts)
+    gcd1                 = gcd(s1.num,s2.den)
+    num1                 = s1.num/gcd1
+    den2                 = s2.den/gcd1
+    gcd2                 = gcd(s2.num,s1.den)
+    num2                 = s2.num/gcd2
+    den1                 = s1.den/gcd2
+    return tf(num1*num2, den1*den2, s2.Ts)
   else
     warn("Sampling time mismatch")
     throw(DomainError())
