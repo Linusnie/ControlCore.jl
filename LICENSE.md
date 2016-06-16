@@ -1,6 +1,7 @@
 The ControlBase.jl package is licensed under the MIT "Expat" License:
 
-> Copyright (c) 2016: Arda Aytekin.
+> Copyright (c) 2016: Arda Aytekin ([aytekin@kth.se](mailto:aytekin@kth.se)),
+> Niklas Everitt ([neveritt@kth.se](mailto:neveritt@kth.se)).
 >
 > Permission is hereby granted, free of charge, to any person obtaining
 > a copy of this software and associated documentation files (the
