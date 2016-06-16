@@ -1,4 +1,4 @@
 [submodule "Polynomials.jl"]
-	path = src/polynomials
-	url = git@github.com:KTH-AC/Polynomials.jl.git
-	branch = development
+  path    = src/polynomials
+  url     = https://github.com/KTH-AC/Polynomials.jl.git
+  branch  = development
