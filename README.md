@@ -2,7 +2,7 @@
 
 **Build Status**
 
--  Unix/OSX: [![Build Status][travis-ci-img]][travis-ci-link]
+-  Unix/OSX: [![Build Status][travis-ci-img]][travis-ci-link] [![Coverage Status](https://coveralls.io/repos/github/KTH-AC/ControlCore.jl/badge.svg?branch=master)](https://coveralls.io/github/KTH-AC/ControlCore.jl?branch=master)
 -  Windows: [![Build status][appveyor-ci-img]][appveyor-ci-link]
 
 Core control systems functionality for **analysis**, **design** and
