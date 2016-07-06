@@ -19,10 +19,10 @@ end
 
 function tf{M1<:AbstractArray, M2<:AbstractArray, T1<:Real}(num::M1,
   den::M2, Ts::T1)
-  @assert eltype(eltype(num)) <: DSiso
-  @assert eltype(eltype(den)) <: DSiso
+  @assert eltype(eltype(num)) <: Real
+  @assert eltype(eltype(den)) <: Real
 
-  T = promote_type(eltype(num), eltype(den))
+  T = promote_type(eltype(eltype(num)), eltype(eltype(den)))
   if size(num, 1, 2) != size(den, 1, 2)
     warn("num and den dimensions must match")
     throw(DomainError())
@@ -50,16 +50,16 @@ function zpk{M1<:AbstractArray, M2<:AbstractArray, M3<:AbstractArray, T1<:Real}(
   @assert eltype(eltype(p)) <: Number
   @assert eltype(k)         <: Real
 
-  T = promote_type(eltype(z), eltype(p))
+  T = promote_type(eltype(eltype(z)), eltype(eltype(p)), eltype(k))
   # Validate input and output dimensions match
   ny, nu = size(z, 1, 2)
   if (ny, nu) != size(p, 1, 2) || (ny, nu) != size(k, 1, 2)
-    warn("num and den dimensions must match")
+    warn("z, p and k dimensions must match")
     throw(DomainError())
   end
   m = similar(z, DSisoZpk{T})
   for idx in eachindex(m)
-    m[idx] = zpk(z_[idx], p_[idx], k[idx], Float64(Ts))
+    m[idx] = zpk(z[idx], p[idx], k[idx], Float64(Ts))
   end
   DMimo(m)
 end
@@ -85,15 +85,18 @@ convert{T<:Real}(::Type{DMimo}, x::T) = zpk(sparse([1],[1],[x]), zero(Float64))
 
 promote_rule{M1<:AbstractArray,T1,T2}(::Type{DMimo{T1,T2}}, ::Type{M1}) = DMimo
 promote_rule{M1<:AbstractArray}(::Type{DMimo}, ::Type{M1}) = DMimo
-convert{M1<:AbstractArray}(::Type{DMimo}, x::M1) =
-    zpk(x, zero(Float64))
+convert{M1<:AbstractArray}(::Type{DMimo}, x::M1) = zpk(x, zero(Float64))
 
 # overloading identities
 
-one(s::DMimo)        = zpk(sparse([1],[1],[Int8(1)]), zero(Float64))
-one(::Type{DMimo})   = zpk(sparse([1],[1],[Int8(1)]), zero(Float64))
-zero(s::DMimo)       = zpk(sparse([1],[1],[Int8(0)]), zero(Float64))
-zero(::Type{DMimo})  = zpk(sparse([1],[1],[Int8(0)]), zero(Float64))
+one(s::DMimo)                     = zpk(sparse([1],[1],[Int8(1)]), zero(Float64))
+one(::Type{DMimo})                = zpk(sparse([1],[1],[Int8(1)]), zero(Float64))
+one{T}(::Type{DMimo{T}})          = zpk(sparse([1],[1],[Int8(1)]), zero(Float64))
+one{T1,T2}(::Type{DMimo{T1,T2}})  = zpk(sparse([1],[1],[Int8(1)]), zero(Float64))
+zero(s::DMimo)                    = zpk(sparse([1],[1],[Int8(0)]), zero(Float64))
+zero(::Type{DMimo})               = zpk(sparse([1],[1],[Int8(0)]), zero(Float64))
+zero{T}(::Type{DMimo{T}})         = zpk(sparse([1],[1],[Int8(0)]), zero(Float64))
+zero{T1,T2}(::Type{DMimo{T1,T2}}) = zpk(sparse([1],[1],[Int8(0)]), zero(Float64))
 
 # interface implementation
 
@@ -102,6 +105,8 @@ samplingtime(s::DMimo) = map(samplingtime, s.m)
 getmatrix(s::DMimo) = s.m
 
 isdiscrete(s::DMimo) = true
+
+transpose(s::DMimo) = mimo(deepcopy(s.m).')
 
 # overload printing functions
 
@@ -129,10 +134,10 @@ function +(s1::DMimo, s2::DMimo)
     throw(DomainError)
   end
   m = s1.m + s2.m
-  DMimo(m)
+  mimo(m)
 end
 
-+{T<:Real}(s::DMimo, n::T)          = DMimo(s.m+n)
++{T<:Real}(s::DMimo, n::T)          = mimo(s.m+n)
 +{T<:Real}(n::T, s::DMimo)          = +(s, n)
 
 function +{T<:Real}(s::DMimo, n::Matrix{T})
@@ -140,9 +145,9 @@ function +{T<:Real}(s::DMimo, n::Matrix{T})
     warn("Systems have different shapes")
     throw(DomainError)
   end
-  DMimo(s.m + n)
+  mimo(s.m + n)
 end
-+{T<:Real}(n::Matrix{T}, s::DMimo)  = (s, n)
++{T<:Real}(n::Matrix{T}, s::DMimo)  = +(s, n)
 
 .+{T<:Real}(n::T, s::DMimo)         = +(n, s)
 .+{T<:Real}(s::DMimo, n::T)         = +(s, n)
@@ -151,7 +156,7 @@ end
 .+{T<:Real}(s::DMimo, n::Matrix{T}) = +(s, n)
 .+(s1::DMimo, s2::DMimo)            = +(s1, s2)
 
--(s::DMimo)                         = DMimo(-s.m)
+-(s::DMimo)                         = mimo(-s.m)
 
 -{T<:Real}(s::DMimo, n::Matrix{T})  = +(s, -n)
 -{T<:Real}(n::Matrix{T}, s::DMimo)  = +(-n, s)
@@ -170,20 +175,20 @@ function *(s1::DMimo, s2::DMimo)
     warn("s1*s2: s1 must have same number of inputs as s2 has outputs")
     throw(DomainError())
   end
-  DMimo(s1.m*s2.m)
+  mimo(deepcopy(s1.m)*deepcopy(s2.m))
 end
 
-*{T<:Real}(s::DMimo, n::T)          = DMimo(s.m*n)
+*{T<:Real}(s::DMimo, n::T)          = mimo(s.m*n)
 *{T<:Real}(n::T, s::DMimo)          = *(s, n)
 
-*{T<:Real}(s::DMimo, n::Matrix{T})  = DMimo(s.m*n)
-*{T<:Real}(n::Matrix{T}, s::DMimo)  = DMimo(n*s.m)
+*{T<:Real}(s::DMimo, n::Matrix{T})  = mimo(s.m*n)
+*{T<:Real}(n::Matrix{T}, s::DMimo)  = mimo(n*s.m)
 
 .*{T<:Real}(n::T, s::DMimo)         = *(n, s)
 .*{T<:Real}(s::DMimo, n::T)         = *(s, n)
-.*{T<:Real}(n::Matrix{T}, s::DMimo) = *(n, s)
-.*{T<:Real}(s::DMimo, n::Matrix{T}) = *(s, n)
-.*(s1::DMimo, s2::DMimo)            = *(s1,s2)
+.*{T<:Real}(n::Matrix{T}, s::DMimo) = mimo(n.*s.m)
+.*{T<:Real}(s::DMimo, n::Matrix{T}) = mimo(s.m.*n)
+.*(s1::DMimo, s2::DMimo)            = mimo(s1.m.*s2.m)
 
 function /{T<:Real}(n::T, s::DMimo)
   warn("MIMO transfer function inversion is not implemented yet")
@@ -191,22 +196,28 @@ function /{T<:Real}(n::T, s::DMimo)
 end
 /(s1::DMimo, s2::DMimo)             = s1*(1/s2)
 /{T<:Real}(s::DMimo, n::T)          = s*(1/n)
-function /{T<:Real}(n::Matrix{T}, t::DMimo)
+function /{T<:Real}(n::Matrix{T}, s::DMimo)
   warn("MIMO transfer function inversion is not implemented yet")
   throw(DomainError())
 end
-/{T<:Real}(s::DMimo, n::Matrix{T})  = DMimo(s.m/n)
+/{T<:Real}(s::DMimo, n::Matrix{T})  = mimo(s.m/n)
 
 ./{T<:Real}(s::DMimo, n::T)         = s/n
 ./{T<:Real}(n::T, s::DMimo)         = n/s
 ./{T<:Real}(s::DMimo, n::Matrix{T}) = s/n
 ./{T<:Real}(n::Matrix{T}, s::DMimo) = n/s
 
-==(s1::DMimo, s2::DMimo)            = s1.m != s2.m
+==(s1::DMimo, s2::DMimo)            = s1.m == s2.m
 
 !=(s1::DMimo, s2::DMimo)            = !(s1.m == s2.m)
 
-function isapprox(
-  s1::DMimo, s2::DMimo)
-  # TODO: Implement
+function isapprox(s1::DMimo, s2::DMimo)
+  if size(s1.m) != size(s2.m)
+    return false
+  end
+  a = 0
+  for i in eachindex(s1.m)
+    a += s1.m[i] ≈ s2.m[i]
+  end
+  a < length(s1.m) ? false : true
 end

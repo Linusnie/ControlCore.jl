@@ -1,3 +1,5 @@
+# TODO tidy upp the print functions
+
 function printtransferfunction{T1}(io::IO, s::DSisoRational{T1})
   numstr = print_poly_reverse(s.num)
   denstr = print_poly_reverse(s.den)
@@ -60,7 +62,7 @@ function printtransferfunction(io::IO, s::CSisoZpk)
   println(io, repeat(" ", len_gain+1), denstr)
 end
 
-function printtransferfunction{T1<:AbstractFloat}(io::IO, s::DSisoZpk{T1})
+function printtransferfunction(io::IO, s::DSisoZpk)
   numstr = sprint(print_polyroots, s.z, "z")
   denstr = sprint(print_polyroots, s.p, "z")
   gainstr = s.k[1]==1.0 ? "" : "$(round(s.k[1], 6))"

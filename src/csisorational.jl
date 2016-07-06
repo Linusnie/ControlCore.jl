@@ -26,39 +26,43 @@ function tf{T1<:Real, T2<:Real}(num::Poly{T1}, den::Poly{T2})
 end
 
 function tf{T1<:Real}(gain::T1)
-  CSisoRational(Poly(gain), Poly(one(T1)))
+  CSisoRational(Poly([gain]), Poly([one(T1)]))
 end
 
 # conversion and promotion
 
 promote_rule{T<:Real,T1,T2,T3}(::Type{CSisoRational{T1,T2,T3}}, ::Type{T}) =
   CSisoRational
-promote_rule{T<:Real}(::Type{CSisoRational}, ::Type{T}) = CSisoRational
+promote_rule{T1,T<:Real}(::Type{CSisoRational{T1}}, ::Type{T}) = CSisoRational
 convert{T<:Real}(::Type{CSisoRational}, x::T) = tf([x], [one(T)])
 
 # overloading identities
 
-zero{T}(::Type{CSisoRational{T}}) = tf([zero(T)], [one(T)])
-zero{T}(s::CSisoRational{T})      = zero(CSisoRational{T})
-one{T}(::Type{CSisoRational{T}})  = tf([one(T)], [one(T)])
-one{T}(s::CSisoRational{T})       = one(CSisoRational{T})
+zero{T1,T2,T3}(::Type{CSisoRational{T1,T2,T3}}) = tf([zero(Int8)], [one(Int8)])
+zero{T}(::Type{CSisoRational{T}})               = tf([zero(Int8)], [one(Int8)])
+zero(::Type{CSisoRational})                     = tf([zero(Int8)], [one(Int8)])
+zero{T}(s::CSisoRational{T})                    = tf([zero(Int8)], [one(Int8)])
+one{T1,T2,T3}(::Type{CSisoRational{T1,T2,T3}})  = tf([one(Int8)], [one(Int8)])
+one{T}(::Type{CSisoRational{T}})                = tf([one(Int8)], [one(Int8)])
+one(::Type{CSisoRational})                      = tf([one(Int8)], [one(Int8)])
+one{T}(s::CSisoRational{T})                     = tf([one(Int8)], [one(Int8)])
 
 # interface implementation
 
 function zeros(s::CSisoRational)
-  copy(roots(s.num))
+  roots(s.num)
 end
 
 function poles(s::CSisoRational)
-  copy(roots(s.den))
+  roots(s.den)
 end
 
 function numvec(s::CSisoRational)
-  copy(coeffs(s.num)[end:-1:1])
+  coeffs(s.num)[end:-1:1]
 end
 
 function denvec(s::CSisoRational)
-  copy(coeffs(s.den)[end:-1:1])
+  coeffs(s.den)[end:-1:1]
 end
 
 function numpoly(s::CSisoRational)
@@ -66,11 +70,11 @@ function numpoly(s::CSisoRational)
 end
 
 function denpoly(s::CSisoRational)
-  copy(s.num)
+  copy(s.den)
 end
 
 function zpkdata(s::CSisoRational)
-  (zeros(s), poles(s), num[1]/den[1])
+  (zeros(s), poles(s), s.num[1]/s.den[1])
 end
 
 function samplingtime(s::CSisoRational)
@@ -93,21 +97,20 @@ end
 # overload mathematical operations
 
 function +(s1::CSisoRational, s2::CSisoRational)
-  dengcd               = gcd(s1.den,s2.den)
-  den1::typeof(s1.den) = s1.den/dengcd
-  den2::typeof(s2.den) = s2.den/dengcd
-  return tf(s1.num*den2 + s2.num*den1, den1*den2)
+  den1,den2,dengcd   = rmgcd(s1.den, s2.den)
+  tf(s1.num*den2 + s2.num*den1, den1*den2*dengcd)
 end
-+{T<:Real}(s::CSisoRational, n::T)       = tf(s.num + n*s.den, s.den)
++{T<:Real}(s::CSisoRational, n::T)       = tf(s.num + n*s.den, copy(s.den))
 +{T<:Real}(n::T, s::CSisoRational)       = s + n
 
 .+{T<:Real}(s::CSisoRational, n::T)      = s + n
 .+{T<:Real}(n::T, s::CSisoRational)      = s + n
 .+(s1::CSisoRational, s2::CSisoRational) = +(s1, s2)
 
--(s::CSisoRational)                      = tf(-s.num, s.den)
+-(s::CSisoRational)                      = tf(-s.num, copy(s.den))
+
 -(s1::CSisoRational, s2::CSisoRational)  = +(s1,-s2)
--{T<:Real}(n::T, s::CSisoRational)       = +(-n, s)
+-{T<:Real}(n::T, s::CSisoRational)       = +(n, -s)
 -{T<:Real}(s::CSisoRational, n::T)       = +(s, -n)
 
 .-{T<:Real}(s::CSisoRational, n::T)      = -(s, n)
@@ -115,16 +118,12 @@ end
 .-(s1::CSisoRational, s2::CSisoRational) = +(s1, -s2)
 
 function *(s1::CSisoRational, s2::CSisoRational)
-  gcd1                 = gcd(s1.num,s2.den)
-  num1::typeof(s1.num) = s1.num/gcd1
-  den2::typeof(s2.den) = s2.den/gcd1
-  gcd2                 = gcd(s2.num,s1.den)
-  num2::typeof(s2.num) = s2.num/gcd1
-  den1::typeof(s1.den) = s1.den/gcd1
-  return tf(num1*num2, den1*den2)
+  num1,den2,gcd1   = rmgcd(s1.num, s2.den)
+  den1,num2,gcd2   = rmgcd(s1.den, s2.num)
+  tf(num1*num2, den1*den2)
 end
 
-*{T<:Real}(s::CSisoRational, n::T)       = tf(s.num*n, s.den)
+*{T<:Real}(s::CSisoRational, n::T)       = tf(s.num*n, copy(s.den))
 *{T<:Real}(n::T, s::CSisoRational)       = *(s, n)
 
 .*{T<:Real}(s::CSisoRational, n::T)      = *(s, n)
@@ -132,27 +131,21 @@ end
 .*(s1::CSisoRational, s2::CSisoRational) = *(s1, s2)
 
 /(s1::CSisoRational, s2::CSisoRational)  = s1*(1/s2)
-/{T<:Real}(n::T, s::CSisoRational)       = tf(s.num/n, s.den)
+/{T<:Real}(n::T, s::CSisoRational)       = tf(n*s.den, copy(s.num))
 /{T<:Real}(s::CSisoRational, n::T)       = s*(1/n)
 
-./{T<:Real}(n::T, s::CSisoRational)      = tf(s.num/n, s.den)
-./{T<:Real}(s::CSisoRational, n::T)      = s*(1/n)
+./{T<:Real}(n::T, s::CSisoRational)      = /(n, s)
+./{T<:Real}(s::CSisoRational, n::T)      = /(s, n)
 ./(s1::CSisoRational, s2::CSisoRational) = /(s1, s2)
 
 function ==(s1::CSisoRational, s2::CSisoRational)
-  fields = [:num, :den]
-  for field in fields
-      if getfield(s1, field) != getfield(s2, field)
-          return false
-      end
-  end
-  true
+  s1.num == s2.num && (s1.den == s2.den || s1.num == zero(s1.num))
 end
 
 !=(s1::CSisoRational, s2::CSisoRational) = !(s1 == s2)
 
 function isapprox(s1::CSisoRational, s2::CSisoRational,
-  rtol::Real=sqrt(eps), atol::Real=0)
+  rtol::Real=sqrt(eps()), atol::Real=0)
   sdiff = s2-s1
-  norm(sdiff.num) < rtol*max(norm(s1.num), norm(s2.num))
+  norm(sdiff.num) < rtol
 end

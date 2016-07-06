@@ -8,7 +8,8 @@ immutable DSisoRational{T<:Real, T1<:Real, T2<:Real} <: DSisoTf{T}
   function call{T1<:Real, T2<:Real}(::Type{DSisoRational}, num::Poly{T1},
       den::Poly{T2}, Ts::Float64)
     T = promote_type(eltype(num), eltype(den))
-    new{T,eltype(num),eltype(den)}(num, den, Ts)
+    Ts_ = Ts > zero(Float64) ? Ts : NaN
+    new{T,eltype(num),eltype(den)}(num, den, Ts_)
   end
 end
 
@@ -36,16 +37,20 @@ end
 
 promote_rule{T<:Real,T1,T2,T3}(::Type{DSisoRational{T1,T2,T3}}, ::Type{T}) =
   DSisoRational
-promote_rule{T<:Real}(::Type{DSisoRational}, ::Type{T}) = DSisoRational
+promote_rule{T1,T<:Real}(::Type{DSisoRational{T1}}, ::Type{T}) = DSisoRational
 convert{T<:Real}(::Type{DSisoRational}, x::T)   =
   tf([x], [one(T)], zero(Float64))
 
 # overloading identities
 
-zero{T}(::Type{DSisoRational{T}}) = tf([zero(T)],[one(T)], zero(Float64))
-zero{T}(s::DSisoRational{T})      = tf([zero(T)],[one(T)], zero(Float64))
-one{T}(::Type{DSisoRational{T}})  = tf([one(T)], [one(T)], zero(Float64))
-one{T}(s::DSisoRational{T})       = tf([one(T)], [one(T)], zero(Float64))
+zero{T1,T2,T3}(::Type{DSisoRational{T1,T2,T3}}) = tf([zero(Int8)], [one(Int8)], zero(Float64))
+zero{T}(::Type{DSisoRational{T}})               = tf([zero(Int8)], [one(Int8)], zero(Float64))
+zero(::Type{DSisoRational})                     = tf([zero(Int8)], [one(Int8)], zero(Float64))
+zero{T}(s::DSisoRational{T})                    = tf([zero(Int8)], [one(Int8)], zero(Float64))
+one{T1,T2,T3}(::Type{DSisoRational{T1,T2,T3}})  = tf([one(Int8)], [one(Int8)], zero(Float64))
+one{T}(::Type{DSisoRational{T}})                = tf([one(Int8)], [one(Int8)], zero(Float64))
+one(::Type{DSisoRational})                      = tf([one(Int8)], [one(Int8)], zero(Float64))
+one{T}(s::DSisoRational{T})                     = tf([one(Int8)], [one(Int8)], zero(Float64))
 
 # interface implementation
 
@@ -58,11 +63,11 @@ function poles(s::DSisoRational)
 end
 
 function numvec(s::DSisoRational)
-  copy(coeffs(s.num)[end:-1:1])
+  coeffs(s.num)[end:-1:1]
 end
 
 function denvec(s::DSisoRational)
-  copy(coeffs(s.den)[end:-1:1])
+  coeffs(s.den)[end:-1:1]
 end
 
 function numpoly(s::DSisoRational)
@@ -78,7 +83,7 @@ function zpkdata(s::DSisoRational)
 end
 
 function samplingtime(s::DSisoRational)
-  copy(s.Ts)
+  s.Ts
 end
 
 # overload printing functions
@@ -102,32 +107,29 @@ end
 # overload mathematical operations
 
 function +(s1::DSisoRational, s2::DSisoRational)
-  if s1.Ts == s2.Ts || s2.Ts == NaN
-    dengcd               = gcd(s1.den,s2.den)
-    den1::typeof(s1.den) = s1.den/dengcd
-    den2::typeof(s2.den) = s2.den/dengcd
-    return tf(s1.num*den2 + s2.num*den1, den1*den2, s1.Ts)
-  elseif s1.Ts == NaN
-    dengcd               = gcd(s1.den,s2.den)
-    den1                 = s1.den/dengcd
-    den2                 = s2.den/dengcd
-    return tf(s1.num*den2 + s2.num*den1, den1*den2, s2.Ts)
+  Ts::Float64
+  if s1.Ts == s2.Ts || isnan(s2.Ts)
+    Ts = s1.Ts
+  elseif isnan(s1.Ts)
+    Ts = s2.Ts
   else
     warn("Sampling time mismatch")
     throw(DomainError())
   end
+  den1,den2,dengcd   = rmgcd(s1.den, s2.den)
+  tf(s1.num*den2 + s2.num*den1, den1*den2*dengcd, Ts)
 end
-+{T<:Real}(s::DSisoRational, n::T)       = tf(s.num + n*s.den, s.den, s.Ts)
++{T<:Real}(s::DSisoRational, n::T)       = tf(s.num + n*s.den, copy(s.den), s.Ts)
 +{T<:Real}(n::T, s::DSisoRational)       = s + n
 
 .+{T<:Real}(s::DSisoRational, n::T)      = s + n
 .+{T<:Real}(n::T, s::DSisoRational)      = s + n
 .+(s1::DSisoRational, s2::DSisoRational) = +(s1,-s2)
 
--{T}(s::DSisoRational{T})                = tf(-s.num, s.den, s.Ts)
+-{T}(s::DSisoRational{T})                = tf(-s.num, copy(s.den), s.Ts)
 
 -(s1::DSisoRational, s2::DSisoRational)  = +(s1,-s2)
--{T<:Real}(n::T, s::DSisoRational)       = +(-n, s)
+-{T<:Real}(n::T, s::DSisoRational)       = +(n, -s)
 -{T<:Real}(s::DSisoRational, n::T)       = +(s, -n)
 
 .-{T<:Real}(s::DSisoRational, n::T)      = +(s, -n)
@@ -135,28 +137,20 @@ end
 .-(s1::DSisoRational, s2::DSisoRational) = +(s1,-s2)
 
 function *(s1::DSisoRational, s2::DSisoRational)
-  if s1.Ts == s2.Ts || s2.Ts == NaN
-    gcd1                 = gcd(s1.num,s2.den)
-    num1::typeof(s1.num) = s1.num/gcd1
-    den2::typeof(s2.den) = s2.den/gcd1
-    gcd2                 = gcd(s2.num,s1.den)
-    num2::typeof(s2.num) = s2.num/gcd2
-    den1::typeof(s1.den) = s1.den/gcd2
-    return tf(num1*num2, den1*den2, s1.Ts)
-  elseif s1.Ts == NaN
-    gcd1                 = gcd(s1.num,s2.den)
-    num1                 = s1.num/gcd1
-    den2                 = s2.den/gcd1
-    gcd2                 = gcd(s2.num,s1.den)
-    num2                 = s2.num/gcd2
-    den1                 = s1.den/gcd2
-    return tf(num1*num2, den1*den2, s2.Ts)
+  Ts::Float64
+  if s1.Ts == s2.Ts || isnan(s2.Ts)
+    Ts = s1.Ts
+  elseif isnan(s1.Ts)
+    Ts = s2.Ts
   else
     warn("Sampling time mismatch")
     throw(DomainError())
   end
+  num1,den2,gcd1 = rmgcd(s1.num, s2.den)
+  den1,num2,gcd2 = rmgcd(s1.den, s2.num)
+  tf(num1*num2, den1*den2, Ts)
 end
-*{T<:Real}(s::DSisoRational, n::T)       = tf(s.num*n, s.den, s.Ts)
+*{T<:Real}(s::DSisoRational, n::T)       = tf(s.num*n, copy(s.den), s.Ts)
 *{T<:Real}(n::T, s::DSisoRational)       = *(s, n)
 
 .*{T<:Real}(s::DSisoRational, n::T)      = *(s, n)
@@ -164,27 +158,23 @@ end
 .*(s1::DSisoRational, s2::DSisoRational) = *(s1, s2)
 
 /(s1::DSisoRational, s2::DSisoRational)  = s1*(1/s2)
-/{T<:Real}(n::T, s::DSisoRational)       = tf(n*s.den, s.num, s.Ts)
+/{T<:Real}(n::T, s::DSisoRational)       = tf(n*s.den, copy(s.num), s.Ts)
 /{T<:Real}(s::DSisoRational, n::T)       = s*(1/n)
 
-./{T<:Real}(n::T, s::DSisoRational)      = n*(1/s)
-./{T<:Real}(s::DSisoRational, n::T)      = s*(1/n)
-./(s1::DSisoRational, s2::DSisoRational) = s1*(1/s2)
+./{T<:Real}(n::T, s::DSisoRational)      = /(n, s)
+./{T<:Real}(s::DSisoRational, n::T)      = /(s, n)
+./(s1::DSisoRational, s2::DSisoRational) = /(s1, s2)
 
 function ==(s1::DSisoRational, s2::DSisoRational)
-  fields = [:num, :den, :Ts]
-  for field in fields
-      if getfield(s1, field) != getfield(s2, field)
-          return false
-      end
-  end
-  true
+  s1.Ts == s2.Ts && s1.num == s2.num &&
+    (s1.den == s2.den || s1.num == zero(s1.num))
+    # TODO scaling of num and den
 end
 
 !=(s1::DSisoRational, s2::DSisoRational) = !(s1 == s2)
 
 function isapprox(s1::DSisoRational, s2::DSisoRational,
-    rtol::Real=sqrt(eps), atol::Real=0)
+    rtol::Real=sqrt(eps()), atol::Real=0)
   sdiff = s2-s1
-  return norm(sdiff.num) < rtol*max(norm(s1.num), norm(s2.num))
+  return norm(sdiff.num) < rtol
 end

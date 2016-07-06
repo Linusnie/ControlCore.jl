@@ -40,9 +40,10 @@ getindex{T<:SisoSystem}(s::MimoSystem{T}, row::Int, col::Int) =
   getindex(getmatrix(s)::AbstractArray, row, col)
 getindex{T<:SisoSystem}(s::MimoSystem{T}, ::Colon, ::Colon)   = s
 getindex{T<:SisoSystem}(s::MimoSystem{T}, ::Colon, cols)      =
-  tf(getindex(getmatrix(s)::AbstractArray, :, cols))
+  mimo(getindex(getmatrix(s)::AbstractArray, :, cols))
 getindex{T<:SisoSystem}(s::MimoSystem{T}, rows::Int, ::Colon) =
-  tf(getindex(getmatrix(s)::AbstractArray, rows, :))
+  mimo(getindex(getmatrix(s)::AbstractArray, rows, :))
+getindex{T<:SisoSystem}(s::MimoSystem{T}, ::Colon)          = mimo(s.m[:])
 
 # Common type interface
 
