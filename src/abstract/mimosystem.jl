@@ -34,19 +34,23 @@ length(s::MimoSystem)               = length(getmatrix(s)::AbstractArray)
 eachindex(s::MimoSystem)            = eachindex(getmatrix(s)::AbstractArray)
 endof(s::MimoSystem)                = endof(getmatrix(s)::AbstractArray)
 
-getindex{T<:SisoSystem}(s::MimoSystem{T}, idx::Int)           =
-  getindex(getmatrix(s)::AbstractArray, idx)
-getindex{T<:SisoSystem}(s::MimoSystem{T}, row::Int, col::Int) =
-  getindex(getmatrix(s)::AbstractArray, row, col)
-getindex{T<:SisoSystem}(s::MimoSystem{T}, ::Colon, ::Colon)   = s
-getindex{T<:SisoSystem}(s::MimoSystem{T}, ::Colon, cols)      =
-  mimo(getindex(getmatrix(s)::AbstractArray, :, cols))
-getindex{T<:SisoSystem}(s::MimoSystem{T}, rows::Int, ::Colon) =
-  mimo(getindex(getmatrix(s)::AbstractArray, rows, :))
-getindex{T<:SisoSystem}(s::MimoSystem{T}, ::Colon)          = mimo(s.m[:])
+# indexing
+Base.getindex(s::MimoSystem, i) = s.M[i]
+Base.getindex(s::MimoSystem, i, j) = s.M[i,j]
+Base.getindex(s::MimoSystem, inds...) = mimo(getindex(s.M, inds...))
+
+Base.setindex!(s1::MimoSystem, s2::SisoSystem, i) = setindex!(s1.M, s2, i)
+Base.setindex!(s1::MimoSystem, s2::SisoSystem, i, j) = setindex!(s1.M, s2, i, j)
+Base.setindex!(s1::MimoSystem, s2::MimoSystem, inds...) = setindex!(s1.M, s2.M, inds...)
+
+# Concatenation
+f(x) = isa(x, MimoSystem) ? getfield(x, :m) : x
+Base.vcat(H::LtiSystem...) = mimo(cat(1, map(f, H)...))
+Base.hcat(H::LtiSystem...) = mimo(cat(2, map(f, H)...))
+
+
 
 # Common type interface
-
 zeros(s::MimoSystem)   = map(poles, getmatrix(s)::AbstractArray)
 poles(s::MimoSystem)   = map(poles, getmatrix(s)::AbstractArray)
 numvec(s::MimoSystem)  = map(numvec, getmatrix(s)::AbstractArray)

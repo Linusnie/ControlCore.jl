@@ -10,7 +10,7 @@ import Base: one, zero
 import Base: inv, zeros
 
 # Import slicing functions
-import Base: ndims, size, getindex
+import Base: ndims, size, getindex, setindex!
 
 # Import iteration interface functions
 import Base: start, next, done, eltype, length, eachindex, endof
